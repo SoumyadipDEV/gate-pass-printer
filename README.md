@@ -1,24 +1,25 @@
-# Welcome to your Lovable project
+# Gate Pass Printer
 
-## Project info
+A modern web application for managing and printing gate passes for Suraksha Diagnostics Limited.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Project Overview
 
-## How can I edit this code?
+The Gate Pass Printer is a comprehensive solution designed to streamline the process of creating, managing, and printing gate passes. It features user authentication, a form-based interface for entering visitor information, and a professional printing interface.
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- User authentication with login/logout functionality
+- Create and manage gate passes
+- Preview gate passes before printing
+- Print-friendly design with A4 support
+- Responsive UI for desktop and mobile devices
+- Professional design with Suraksha Diagnostics branding
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
 Follow these steps:
 
@@ -27,47 +28,69 @@ Follow these steps:
 git clone <YOUR_GIT_URL>
 
 # Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+cd gate-pass-printer
 
 # Step 3: Install the necessary dependencies.
-npm i
+npm install
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+To start the development server:
 
-**Use GitHub Codespaces**
+```sh
+npm run dev
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The application will be available at `http://localhost:8080`
 
-## What technologies are used for this project?
+## Technologies Used
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Vite** - Next generation frontend tooling
+- **TypeScript** - JavaScript with syntax for types
+- **React** - UI library
+- **React Router** - Client-side routing
+- **shadcn-ui** - Reusable UI components
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Query** - Data fetching and caching
+- **React to Print** - Print functionality
 
-## How can I deploy this project?
+## Project Structure
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```
+src/
+├── components/       # Reusable UI components
+├── pages/           # Page components (Login, Index)
+├── types/           # TypeScript type definitions
+├── utils/           # Utility functions
+├── hooks/           # Custom React hooks
+├── assets/          # Static assets
+└── main.tsx         # Application entry point
+```
 
-## Can I connect a custom domain to my Lovable project?
+## Available Scripts
 
-Yes, you can!
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm test` - Run tests
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Authentication
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+The application includes a login system. Demo credentials can be used with any email and password combination for testing purposes.
+
+## Deployment
+
+Build the application for production:
+
+```sh
+npm run build
+```
+
+The production files will be generated in the `dist` directory.
