@@ -5,7 +5,7 @@ import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
-import surakshaLogo from "@/assets/suraksha-logo.jpg";
+import surakshaLogo from "@/assets/Suraksha-Logo.png";
 
 const Index = () => {
   const [gatePassData, setGatePassData] = useState<GatePassData | null>(null);
@@ -29,7 +29,7 @@ const Index = () => {
       {/* Header */}
       <header className="bg-card border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-4">
-          <img src={surakshaLogo} alt="Suraksha Diagnostic Limited" className="h-12 object-contain" />
+          {/* <img src={surakshaLogo} alt="Suraksha Diagnostic Limited" className="h-12 object-contain" /> */}
           <div className="text-center">
             <h1 className="text-xl md:text-2xl font-bold text-foreground">SURAKSHA DIAGNOSTIC LIMITED</h1>
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
