@@ -6,7 +6,7 @@ import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, LogOut } from "lucide-react";
-import surakshaLogo from "@/assets/Suraksha-Logo.png";
+
 
 const Index = () => {
   const navigate = useNavigate();
