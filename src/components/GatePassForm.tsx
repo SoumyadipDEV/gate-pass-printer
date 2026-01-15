@@ -67,15 +67,15 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
 
   return (
     <Card className="w-full max-w-4xl mx-auto shadow-lg">
-      <CardHeader className="bg-primary/5 border-b border-border">
+      <CardHeader className="bg-primary/5 border-b border-border p-4">
         <CardTitle className="text-2xl font-bold text-center text-foreground">
           Gate Pass Entry Form
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="p-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Items Table */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-lg font-semibold text-foreground">Items</Label>
               <Button type="button" onClick={addItem} variant="outline" size="sm">
@@ -94,6 +94,7 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
                 <div className="col-span-1"></div>
               </div>
               
+              <div className="h-36 overflow-y-auto">
               {items.map((item, index) => (
                 <div key={index} className="grid grid-cols-12 gap-2 p-3 border-t border-border items-center">
                   <div className="col-span-1">
@@ -150,6 +151,7 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
               ))}
             </div>
           </div>
+         </div>
 
           {/* Other Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -193,7 +195,7 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center pt-2">
             <Button type="submit" size="lg" className="px-8">
               <Printer className="w-5 h-5 mr-2" />
               Generate & Print Gate Pass

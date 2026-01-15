@@ -1,13 +1,15 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { GatePassForm } from "@/components/GatePassForm";
 import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, LogOut } from "lucide-react";
 import surakshaLogo from "@/assets/Suraksha-Logo.png";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [gatePassData, setGatePassData] = useState<GatePassData | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -24,21 +26,29 @@ const Index = () => {
     setGatePassData(null);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-4">
-          {/* <img src={surakshaLogo} alt="Suraksha Diagnostic Limited" className="h-12 object-contain" /> */}
-          <div className="text-center">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50 py-1 mb-2">
+        <div className="container mx-auto px-2 py-2 flex items-center justify-between gap-4">
+          <div className="text-center flex-1">
             <h1 className="text-xl md:text-2xl font-bold text-foreground">SURAKSHA DIAGNOSTIC LIMITED</h1>
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
           </div>
+          <Button variant="outline" onClick={handleLogout} className="flex gap-2">
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button> 
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto p-4">
         {!gatePassData ? (
           <GatePassForm onSubmit={handleFormSubmit} />
         ) : (
