@@ -5,13 +5,13 @@ import { GatePassForm } from "@/components/GatePassForm";
 import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, LogOut } from "lucide-react";
+import { ArrowLeft, Printer, LogOut, LayoutGrid } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 
 
 const Index = () => {
   const navigate = useNavigate();
-  const { logout } = useUser();
+  const { logout, user } = useUser();
   const [gatePassData, setGatePassData] = useState<GatePassData | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +24,32 @@ const Index = () => {
     setGatePassData(data);
   };
 
+  const handleSaveAndReturn = () => {
+    if (gatePassData) {
+      // Get existing gate passes from localStorage
+      const existingList = localStorage.getItem("gatePassList");
+      const gatePassList = existingList ? JSON.parse(existingList) : [];
+      
+      // Create simple ID using timestamp and random number
+      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create new entry with additional metadata
+      const newEntry = {
+        ...gatePassData,
+        id: newId,
+        createdBy: user?.email || "Unknown",
+        createdAt: new Date(),
+      };
+      
+      // Add to list and save
+      gatePassList.push(newEntry);
+      localStorage.setItem("gatePassList", JSON.stringify(gatePassList));
+      
+      // Navigate to dashboard
+      navigate("/dashboard");
+    }
+  };
+
   const handleBack = () => {
     setGatePassData(null);
   };
@@ -31,6 +57,10 @@ const Index = () => {
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  const handleViewDashboard = () => {
+    navigate("/dashboard");
   };
 
   return (
@@ -42,10 +72,16 @@ const Index = () => {
             <h1 className="text-xl md:text-2xl font-bold text-foreground">SURAKSHA DIAGNOSTIC LIMITED</h1>
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
           </div>
-          <Button variant="outline" onClick={handleLogout} className="flex gap-2">
-            <LogOut className="w-4 h-4" />
-            Logout
-          </Button> 
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleViewDashboard} className="flex gap-2">
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+            <Button variant="outline" onClick={handleLogout} className="flex gap-2">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -56,7 +92,7 @@ const Index = () => {
         ) : (
           <div className="space-y-6">
             {/* Action Buttons */}
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-4 flex-wrap">
               <Button variant="outline" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Form
@@ -64,6 +100,13 @@ const Index = () => {
               <Button onClick={() => handlePrint()}>
                 <Printer className="w-4 h-4 mr-2" />
                 Print Gate Pass
+              </Button>
+              <Button 
+                onClick={handleSaveAndReturn}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                Save & Go to Dashboard
               </Button>
             </div>
 

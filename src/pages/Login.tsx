@@ -34,7 +34,7 @@ const Login = () => {
       
       // For demo purposes, allow any non-empty credentials
       login({ email });
-      navigate("/index");
+      navigate("/dashboard");
     } catch (err) {
       setError("Login failed. Please try again.");
     } finally {
