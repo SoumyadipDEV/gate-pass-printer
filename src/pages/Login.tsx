@@ -7,9 +7,11 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useUser } from "@/contexts/UserContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +33,7 @@ const Login = () => {
       // Example: const response = await fetch('/api/login', { ... })
       
       // For demo purposes, allow any non-empty credentials
-      localStorage.setItem("isAuthenticated", "true");
+      login({ email });
       navigate("/index");
     } catch (err) {
       setError("Login failed. Please try again.");

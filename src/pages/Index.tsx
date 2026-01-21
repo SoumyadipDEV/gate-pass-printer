@@ -6,10 +6,12 @@ import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, LogOut } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 
 
 const Index = () => {
   const navigate = useNavigate();
+  const { logout } = useUser();
   const [gatePassData, setGatePassData] = useState<GatePassData | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +29,7 @@ const Index = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
+    logout();
     navigate("/");
   };
 
