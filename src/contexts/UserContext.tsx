@@ -20,6 +20,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error("Failed to parse stored user:", error);
         localStorage.removeItem("user");
+        localStorage.removeItem("username");
+        localStorage.removeItem("email");
         localStorage.removeItem("isAuthenticated");
       }
     }
@@ -30,6 +32,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     setIsAuthenticated(true);
     localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("username", userData.name || "");
+    localStorage.setItem("email", userData.email);
     localStorage.setItem("isAuthenticated", "true");
   };
 
@@ -37,6 +41,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("user");
+    localStorage.removeItem("username");
     localStorage.removeItem("isAuthenticated");
   };
 

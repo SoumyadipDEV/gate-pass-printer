@@ -29,14 +29,31 @@ const Login = () => {
         return;
       }
 
-      // Mock authentication - replace with actual API call
-      // Example: const response = await fetch('/api/login', { ... })
-      
-      // For demo purposes, allow any non-empty credentials
-      login({ email });
+      // Make API call to backend
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.message || "Login failed. Please try again.");
+        return;
+      }
+
+      // Login successful
+      login({ email: data.user.email, name: data.user.userName });
       navigate("/dashboard");
     } catch (err) {
       setError("Login failed. Please try again.");
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +114,7 @@ const Login = () => {
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Demo credentials: Any email and password</p>
+            <p>Application Used For IT Gate Pass Creation</p>
           </div>
         </Card>
       </div>
