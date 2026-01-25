@@ -90,7 +90,8 @@ const Dashboard = () => {
   const handleDeleteGatePass = async (id: string) => {
     try {
       // Call API to delete gate pass
-      const response = await fetch(`http://localhost:3000/api/gatepass/${id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${apiUrl}/api/gatepassdelete/${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
