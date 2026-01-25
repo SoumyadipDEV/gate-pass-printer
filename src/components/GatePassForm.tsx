@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Printer } from "lucide-react";
 import { GatePassItem, GatePassData } from "@/types/gatepass";
-import { generateGatePassNumber } from "@/utils/gatepassNumber";
 
 interface GatePassFormProps {
   onSubmit: (data: GatePassData) => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 const throughOptions = [
@@ -54,7 +55,6 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
     e.preventDefault();
     
     const gatepassData: GatePassData = {
-      gatepassNo: generateGatePassNumber(),
       date: new Date(),
       items,
       destination,

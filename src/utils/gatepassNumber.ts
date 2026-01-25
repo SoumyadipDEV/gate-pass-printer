@@ -10,11 +10,12 @@ export function generateGatePassNumber(): string {
   return `SDLGP${year}${month}${day}-${sequence}`;
 }
 
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
   const options: Intl.DateTimeFormatOptions = { 
     day: '2-digit', 
     month: 'short', 
     year: 'numeric' 
   };
-  return date.toLocaleDateString('en-GB', options);
+  return dateObj.toLocaleDateString('en-GB', options);
 }

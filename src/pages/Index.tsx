@@ -3,16 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { GatePassForm } from "@/components/GatePassForm";
 import { GatePassPrint } from "@/components/GatePassPrint";
-import { GatePassData } from "@/types/gatepass";
+import { GatePassData, GatePassWithMeta } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, LogOut, LayoutGrid } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
+import { GatePassService } from "@/services/gatepassService";
+import { useToast } from "@/hooks/use-toast";
 
 
 const Index = () => {
   const navigate = useNavigate();
   const { logout, user } = useUser();
-  const [gatePassData, setGatePassData] = useState<GatePassData | null>(null);
+  const { toast } = useToast();
+  const [gatePassData, setGatePassData] = useState<GatePassWithMeta | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -20,38 +25,99 @@ const Index = () => {
     documentTitle: gatePassData ? `GatePass-${gatePassData.gatepassNo}` : "GatePass",
   });
 
-  const handleFormSubmit = (data: GatePassData) => {
-    setGatePassData(data);
+  const handleFormSubmit = async (data: GatePassData) => {
+    const userName = localStorage.getItem("username") || user?.name;
+    
+    if (!userName) {
+      setError("User name not found");
+      toast({
+        title: "Error",
+        description: "User name not found. Please login again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Call API to create gate pass
+      const { id: gatePassId, gatepassNo } = await GatePassService.createGatePass(data, userName);
+
+      // Prepare the response data to display
+      const responseData: GatePassWithMeta = {
+        ...data,
+        id: gatePassId,
+        gatepassNo,
+        createdBy: userName,
+        createdAt: new Date(),
+        userName: userName,
+      };
+
+      setGatePassData(responseData);
+
+      toast({
+        title: "Success",
+        description: "Gate pass created successfully!",
+        variant: "default",
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create gate pass";
+      setError(errorMessage);
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveAndReturn = () => {
-    if (gatePassData) {
-      // Get existing gate passes from localStorage
-      const existingList = localStorage.getItem("gatePassList");
-      const gatePassList = existingList ? JSON.parse(existingList) : [];
-      
-      // Create simple ID using timestamp and random number
-      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Create new entry with additional metadata
-      const newEntry = {
-        ...gatePassData,
-        id: newId,
-        createdBy: user?.email || "Unknown",
-        createdAt: new Date(),
-      };
-      
-      // Add to list and save
-      gatePassList.push(newEntry);
-      localStorage.setItem("gatePassList", JSON.stringify(gatePassList));
-      
-      // Navigate to dashboard
+  const handleSaveAndReturn = async () => {
+    if (!gatePassData || !gatePassData.id) {
+      setError("Gate pass data is missing");
+      toast({
+        title: "Error",
+        description: "Gate pass data is incomplete",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Navigate to dashboard - data is already saved in the database
+      toast({
+        title: "Success",
+        description: "Redirecting to dashboard...",
+        variant: "default",
+      });
       navigate("/dashboard");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to process request";
+      setError(errorMessage);
+
+      // Attempt rollback if something went wrong
+      try {
+        await GatePassService.rollbackGatePass(gatePassData.id);
+        console.log("Rollback completed successfully");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
   const handleBack = () => {
     setGatePassData(null);
+    setError(null);
   };
 
   const handleLogout = () => {
@@ -88,7 +154,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto p-4">
         {!gatePassData ? (
-          <GatePassForm onSubmit={handleFormSubmit} />
+          <GatePassForm onSubmit={handleFormSubmit} isLoading={isLoading} error={error} />
         ) : (
           <div className="space-y-6">
             {/* Action Buttons */}
@@ -103,7 +169,7 @@ const Index = () => {
               </Button>
               <Button 
                 onClick={handleSaveAndReturn}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 hidden"
               >
                 <LayoutGrid className="w-4 h-4 mr-2" />
                 Save & Go to Dashboard
