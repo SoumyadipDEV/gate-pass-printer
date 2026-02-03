@@ -87,6 +87,7 @@ export class GatePassService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-user": createdBy,
         },
         body: JSON.stringify(payload),
       });
