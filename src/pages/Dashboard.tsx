@@ -3,13 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { LogOut, Search, Printer, Plus, Trash2, Pencil } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
 import { GatePassPrint } from "@/components/GatePassPrint";
 import { useReactToPrint } from "react-to-print";
 import { GatePassService } from "@/services/gatepassService";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +32,9 @@ const Dashboard = () => {
   const [shouldPrint, setShouldPrint] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFromDate, setExportFromDate] = useState("");
+  const [exportToDate, setExportToDate] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch gate passes from API using service
@@ -73,6 +87,7 @@ const Dashboard = () => {
         gatePass.gatepassNo.toLowerCase().includes(query) ||
         gatePass.destination.toLowerCase().includes(query) ||
         gatePass.carriedBy.toLowerCase().includes(query) ||
+        (gatePass.mobileNo ? gatePass.mobileNo.toLowerCase().includes(query) : false) ||
         gatePass.createdBy.toLowerCase().includes(query)
       );
     });
@@ -134,6 +149,15 @@ const Dashboard = () => {
     navigate(`/edit/${gatePass.id}`, { state: { gatePass } });
   };
 
+  const parseLocalDate = (value: string): Date | null => {
+    const parts = value.split("-").map((part) => Number(part));
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+      return null;
+    }
+    const [year, month, day] = parts;
+    return new Date(year, month - 1, day);
+  };
+
   // Format date as DD-MM-YYYY
   const formatDate = (dateString: string | Date): string => {
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
@@ -141,6 +165,97 @@ const Dashboard = () => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
+  };
+
+  const handleExport = () => {
+    const fromDate = parseLocalDate(exportFromDate);
+    const toDate = parseLocalDate(exportToDate);
+
+    if (!fromDate || !toDate) {
+      toast({
+        title: "Missing dates",
+        description: "Please select both From Date and To Date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (fromDate > toDate) {
+      toast({
+        title: "Invalid date range",
+        description: "From Date cannot be later than To Date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const toDateEnd = new Date(toDate);
+    toDateEnd.setHours(23, 59, 59, 999);
+
+    const filtered = gatePassList.filter((gatePass) => {
+      const createdAt = gatePass.createdAt ? new Date(gatePass.createdAt) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) {
+        return false;
+      }
+      return createdAt >= fromDate && createdAt <= toDateEnd;
+    });
+
+    if (filtered.length === 0) {
+      toast({
+        title: "No gate passes found",
+        description: "No gate passes were created in the selected date range.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const rows = filtered.flatMap((gatePass) => {
+      const headerData = {
+        "GatePass No": gatePass.gatepassNo,
+        "GatePass Date": gatePass.date ? formatDate(gatePass.date) : "",
+        Destination: gatePass.destination,
+        "Carried By": gatePass.carriedBy,
+        Through: gatePass.through,
+        "Mobile No": gatePass.mobileNo || "",
+        "Created By": gatePass.userName || gatePass.createdBy || "",
+        "Created Date": gatePass.createdAt ? formatDate(gatePass.createdAt) : "",
+      };
+
+      if (!gatePass.items || gatePass.items.length === 0) {
+        return [
+          {
+            ...headerData,
+            "Item Sl No": "",
+            "Item Description": "",
+            "Item Model": "",
+            "Item Serial No": "",
+            "Item Qty": "",
+          },
+        ];
+      }
+
+      return gatePass.items.map((item) => ({
+        ...headerData,
+        "Item Sl No": item.slNo,
+        "Item Description": item.description,
+        "Item Model": item.model,
+        "Item Serial No": item.serialNo,
+        "Item Qty": item.qty,
+      }));
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "GatePasses");
+
+    const fileName = `gatepasses_${exportFromDate}_to_${exportToDate}.xlsx`;
+    XLSX.writeFile(workbook, fileName, { compression: true });
+
+    toast({
+      title: "Export ready",
+      description: `Downloaded ${filtered.length} gate pass${filtered.length === 1 ? "" : "es"} in Excel format.`,
+    });
+    setExportOpen(false);
   };
 
   return (
@@ -153,6 +268,48 @@ const Dashboard = () => {
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
           </div>
           <div className="flex gap-2">
+            <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Export Gate Passes</DialogTitle>
+                  <DialogDescription>
+                    Select a date range to export gate passes created between those dates.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="export-from-date">From Date</Label>
+                    <Input
+                      id="export-from-date"
+                      type="date"
+                      value={exportFromDate}
+                      onChange={(e) => setExportFromDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="export-to-date">To Date</Label>
+                    <Input
+                      id="export-to-date"
+                      type="date"
+                      value={exportToDate}
+                      onChange={(e) => setExportToDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setExportOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleExport}>Download Excel</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline" onClick={handleCreateNew} className="flex gap-2">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Create New</span>
@@ -240,11 +397,12 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-2">
                   {/* Table Header */}
-                  <div className="hidden md:grid grid-cols-11 gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
+                  <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
                     <div className="col-span-2">GatePass No</div>
                     <div className="col-span-2">Destination</div>
                     <div className="col-span-2">Carried By</div>
-                    <div className="col-span-2">Created Date</div>
+                    <div className="col-span-2">Mobile No</div>
+                    <div className="col-span-1">Created Date</div>
                     <div className="col-span-1">Created By</div>
                     <div className="col-span-2">Action</div>
                   </div>
@@ -307,6 +465,10 @@ const Dashboard = () => {
                             <p className="text-foreground font-medium truncate">{gatePass.carriedBy}</p>
                           </div>
                           <div>
+                            <p className="text-muted-foreground text-xs">Mobile No</p>
+                            <p className="text-foreground font-medium truncate">{gatePass.mobileNo || "-"}</p>
+                          </div>
+                          <div>
                             <p className="text-muted-foreground text-xs">Created Date</p>
                             <p className="text-foreground font-medium">
                               {formatDate(gatePass.createdAt)}
@@ -320,7 +482,7 @@ const Dashboard = () => {
                       </div>
 
                       {/* Desktop View */}
-                      <div className="hidden md:grid grid-cols-11 gap-3 items-center py-2">
+                      <div className="hidden md:grid grid-cols-12 gap-3 items-center py-2">
                         <div className="col-span-2">
                           <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
                         </div>
@@ -331,6 +493,9 @@ const Dashboard = () => {
                           <p className="text-foreground truncate">{gatePass.carriedBy}</p>
                         </div>
                         <div className="col-span-2">
+                          <p className="text-foreground truncate">{gatePass.mobileNo || "-"}</p>
+                        </div>
+                        <div className="col-span-1">
                           <p className="text-sm text-muted-foreground">
                             {formatDate(gatePass.createdAt)}
                           </p>

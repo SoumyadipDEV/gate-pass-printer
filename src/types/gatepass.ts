@@ -13,6 +13,7 @@ export interface GatePassData {
   destination: string;
   carriedBy: string;
   through: string;
+  mobileNo?: string;
   id?: string;
   createdBy?: string;
 }
@@ -24,6 +25,7 @@ export interface GatePassApiResponse {
   destination: string;
   carriedBy: string;
   through: string;
+  mobileNo: string;
   id: string;
   createdBy: string;
   createdAt: string;

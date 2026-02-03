@@ -44,6 +44,7 @@ export function GatePassForm({
   const [destination, setDestination] = useState(initialData?.destination ?? "");
   const [carriedBy, setCarriedBy] = useState(initialData?.carriedBy ?? "");
   const [through, setThrough] = useState(initialData?.through ?? "");
+  const [mobileNo, setMobileNo] = useState(initialData?.mobileNo ?? "");
   const resolvedSubmitIcon = submitIcon ?? <Printer className="w-5 h-5 mr-2" />;
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export function GatePassForm({
     setDestination(initialData.destination ?? "");
     setCarriedBy(initialData.carriedBy ?? "");
     setThrough(initialData.through ?? "");
+    setMobileNo(initialData.mobileNo ?? "");
   }, [initialData]);
 
   const addItem = () => {
@@ -88,6 +90,7 @@ export function GatePassForm({
       destination,
       carriedBy,
       through,
+      mobileNo,
       gatepassNo: initialData?.gatepassNo,
       id: initialData?.id,
       createdBy: initialData?.createdBy,
@@ -191,7 +194,7 @@ export function GatePassForm({
          </div>
 
           {/* Other Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="destination">Destination</Label>
               <Input
@@ -213,7 +216,7 @@ export function GatePassForm({
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="through">Through</Label>
               <Select value={through} onValueChange={setThrough} required>
@@ -228,6 +231,17 @@ export function GatePassForm({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mobileNo">Mobile No</Label>
+              <Input
+                id="mobileNo"
+                value={mobileNo}
+                onChange={(e) => setMobileNo(e.target.value)}
+                placeholder="Enter mobile number"
+                required
+              />
             </div>
           </div>
 

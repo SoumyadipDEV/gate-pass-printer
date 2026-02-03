@@ -69,10 +69,19 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
     </table>
 
     {/* Destination and Carried By */}
-    <div className="my-1 text-xs flex text-center gap-2">
-      <p className="text-foreground leading-tight flex-1"><span className="font-semibold text-sm">Destination :</span> {data.destination}</p>
-      <p className="text-foreground leading-tight flex-1 text-sm"><span className="font-semibold">Carried by:</span> {data.carriedBy}</p>
-      <p className="text-foreground leading-tight flex-1 text-sm"><span className="font-semibold">Through:</span> {data.through}</p>
+    <div className="my-1 text-xs flex flex-wrap text-center gap-2">
+      <p className="text-foreground leading-tight flex-1 min-w-[160px]">
+        <span className="font-semibold text-sm">Destination :</span> {data.destination}
+      </p>
+      <p className="text-foreground leading-tight flex-1 min-w-[160px] text-sm">
+        <span className="font-semibold">Carried by:</span> {data.carriedBy}
+      </p>
+      <p className="text-foreground leading-tight flex-1 min-w-[160px] text-sm">
+        <span className="font-semibold">Through:</span> {data.through}
+      </p>
+      <p className="text-foreground leading-tight flex-1 min-w-[160px] text-sm">
+        <span className="font-semibold">Mobile No:</span> {data.mobileNo || "-"}
+      </p>
     </div>
 
     {/* Signature Section */}

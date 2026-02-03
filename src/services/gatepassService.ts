@@ -11,6 +11,7 @@ interface ApiPayload {
   destination: string;
   carriedBy: string;
   through: string;
+  mobileNo?: string;
   createdBy?: string;
   items: Array<{
     slNo: number;
@@ -85,6 +86,7 @@ export class GatePassService {
       destination: data.destination,
       carriedBy: data.carriedBy,
       through: data.through,
+      mobileNo: data.mobileNo,
       createdBy,
       items: data.items,
     };
@@ -173,6 +175,7 @@ export class GatePassService {
           destination: item.destination,
           carriedBy: item.carriedBy,
           through: item.through,
+          mobileNo: item.mobileNo,
           id: item.id,
           createdBy: item.createdBy,
           createdAt: new Date(item.createdAt),
@@ -208,6 +211,7 @@ export class GatePassService {
       destination: data.destination,
       carriedBy: data.carriedBy,
       through: data.through,
+      mobileNo: data.mobileNo,
       createdBy: data.createdBy,
       items: data.items,
     };
