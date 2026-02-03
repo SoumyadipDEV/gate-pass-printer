@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,9 @@ import { GatePassItem, GatePassData } from "@/types/gatepass";
 
 interface GatePassFormProps {
   onSubmit: (data: GatePassData) => void;
+  initialData?: Partial<GatePassData>;
+  submitLabel?: string;
+  submitIcon?: ReactNode;
   isLoading?: boolean;
   error?: string | null;
 }
@@ -20,13 +23,38 @@ const throughOptions = [
   "House Keeping"
 ];
 
-export function GatePassForm({ onSubmit }: GatePassFormProps) {
-  const [items, setItems] = useState<GatePassItem[]>([
-    { slNo: 1, description: "", model: "", serialNo: "", qty: 1 }
-  ]);
-  const [destination, setDestination] = useState("");
-  const [carriedBy, setCarriedBy] = useState("");
-  const [through, setThrough] = useState("");
+const EMPTY_ITEM: GatePassItem = { slNo: 1, description: "", model: "", serialNo: "", qty: 1 };
+
+const normalizeItems = (items?: GatePassItem[]) => {
+  if (!items || items.length === 0) {
+    return [EMPTY_ITEM];
+  }
+  return items.map((item, index) => ({ ...item, slNo: index + 1 }));
+};
+
+export function GatePassForm({
+  onSubmit,
+  initialData,
+  submitLabel = "Generate & Print Gate Pass",
+  submitIcon,
+  isLoading = false,
+  error,
+}: GatePassFormProps) {
+  const [items, setItems] = useState<GatePassItem[]>(normalizeItems(initialData?.items));
+  const [destination, setDestination] = useState(initialData?.destination ?? "");
+  const [carriedBy, setCarriedBy] = useState(initialData?.carriedBy ?? "");
+  const [through, setThrough] = useState(initialData?.through ?? "");
+  const resolvedSubmitIcon = submitIcon ?? <Printer className="w-5 h-5 mr-2" />;
+
+  useEffect(() => {
+    if (!initialData) {
+      return;
+    }
+    setItems(normalizeItems(initialData.items));
+    setDestination(initialData.destination ?? "");
+    setCarriedBy(initialData.carriedBy ?? "");
+    setThrough(initialData.through ?? "");
+  }, [initialData]);
 
   const addItem = () => {
     setItems([
@@ -55,11 +83,14 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
     e.preventDefault();
     
     const gatepassData: GatePassData = {
-      date: new Date(),
+      date: initialData?.date ?? new Date(),
       items,
       destination,
       carriedBy,
-      through
+      through,
+      gatepassNo: initialData?.gatepassNo,
+      id: initialData?.id,
+      createdBy: initialData?.createdBy,
     };
     
     onSubmit(gatepassData);
@@ -74,6 +105,12 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
       </CardHeader>
       <CardContent className="p-2">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           {/* Items Table */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -196,9 +233,9 @@ export function GatePassForm({ onSubmit }: GatePassFormProps) {
 
           {/* Submit Button */}
           <div className="flex justify-center pt-2">
-            <Button type="submit" size="lg" className="px-8">
-              <Printer className="w-5 h-5 mr-2" />
-              Generate & Print Gate Pass
+            <Button type="submit" size="lg" className="px-8" disabled={isLoading}>
+              {resolvedSubmitIcon}
+              {isLoading ? "Working..." : submitLabel}
             </Button>
           </div>
         </form>

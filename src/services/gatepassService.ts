@@ -11,7 +11,7 @@ interface ApiPayload {
   destination: string;
   carriedBy: string;
   through: string;
-  createdBy: string;
+  createdBy?: string;
   items: Array<{
     slNo: number;
     description: string;
@@ -50,6 +50,13 @@ function convertToIST(date: Date | string): string {
   // IST is UTC+5:30
   const istDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
   return istDate.toISOString().replace('Z', '+05:30');
+}
+
+function formatApiDate(date: Date | string): string {
+  if (typeof date === "string") {
+    return date;
+  }
+  return convertToIST(date);
 }
 
 export class GatePassService {
@@ -161,7 +168,7 @@ export class GatePassService {
       if (result.success && Array.isArray(result.data)) {
         return result.data.map((item: any) => ({
           gatepassNo: item.gatepassNo,
-          date: new Date(item.date),
+          date: item.date,
           items: item.items,
           destination: item.destination,
           carriedBy: item.carriedBy,
@@ -179,6 +186,58 @@ export class GatePassService {
         ? error.message 
         : "Failed to load gate passes";
       throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Update an existing gate pass
+   * @param data - Updated gate pass data
+   * @param updatedBy - Optional user name for audit header
+   * @returns Promise that resolves when update is complete
+   */
+  static async updateGatePass(
+    data: GatePassData & { id: string; gatepassNo: string },
+    updatedBy?: string
+  ): Promise<void> {
+    const dateString = formatApiDate(data.date);
+
+    const payload: ApiPayload = {
+      id: data.id,
+      gatepassNo: data.gatepassNo,
+      date: dateString,
+      destination: data.destination,
+      carriedBy: data.carriedBy,
+      through: data.through,
+      createdBy: data.createdBy,
+      items: data.items,
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(updatedBy ? { "x-user": updatedBy } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as ApiErrorResponse;
+        throw new Error(errorData.message || `API error: ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as ApiResponse | ApiErrorResponse;
+
+      if (!result.success) {
+        throw new Error(result.message || "Failed to update gate pass");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "An unexpected error occurred";
+
+      throw new Error(`Failed to update gate pass: ${errorMessage}`);
     }
   }
 }

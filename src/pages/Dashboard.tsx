@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { LogOut, Search, Printer, Plus, Trash2 } from "lucide-react";
+import { LogOut, Search, Printer, Plus, Trash2, Pencil } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
 import { GatePassPrint } from "@/components/GatePassPrint";
@@ -128,6 +128,10 @@ const Dashboard = () => {
   const handlePrintGatePass = (gatePass: GatePassWithMeta) => {
     setSelectedGatePass(gatePass);
     setShouldPrint(true);
+  };
+
+  const handleEditGatePass = (gatePass: GatePassWithMeta) => {
+    navigate(`/edit/${gatePass.id}`, { state: { gatePass } });
   };
 
   // Format date as DD-MM-YYYY
@@ -271,6 +275,18 @@ const Dashboard = () => {
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditGatePass(gatePass);
+                              }}
+                              className="gap-1"
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span className="text-xs">Edit</span>
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -334,6 +350,18 @@ const Dashboard = () => {
                           >
                             <Printer className="w-4 h-4" />
                             <span className="text-xs">Print</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditGatePass(gatePass);
+                            }}
+                            className="gap-1 flex-1"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span className="text-xs">Edit</span>
                           </Button>
                           <Button
                             size="sm"
