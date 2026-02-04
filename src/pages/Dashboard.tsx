@@ -476,7 +476,9 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <p className="text-muted-foreground text-xs">Created By</p>
-                            <p className="text-foreground font-medium truncate">{gatePass.userName || gatePass.createdBy}</p>
+                            <p className="text-foreground font-medium whitespace-normal break-words">
+                              {gatePass.userName || gatePass.createdBy}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -501,7 +503,9 @@ const Dashboard = () => {
                           </p>
                         </div>
                         <div className="col-span-1">
-                          <p className="text-foreground truncate text-sm">{gatePass.userName || gatePass.createdBy}</p>
+                          <p className="text-foreground text-sm whitespace-normal break-words">
+                            {gatePass.userName || gatePass.createdBy}
+                          </p>
                         </div>
                         <div className="col-span-2 flex gap-1">
                           <Button
