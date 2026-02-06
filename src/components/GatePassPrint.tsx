@@ -52,7 +52,7 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
     {/* Items Table */}
     <table className="w-full border-collapse border border-foreground mb-0.5 flex-grow" style={{ tableLayout: "fixed" }}>
       <thead>
-        <tr className="bg-muted/30 h-6">
+        <tr className="h-6">
           <th className="border border-foreground p-0.5 text-center text-foreground text-xs font-semibold" style={{ width: "5%" }}>Sl No</th>
           <th className="border border-foreground p-0.5 text-center text-foreground text-xs font-semibold" style={{ width: "35%" }}>Description</th>
           <th className="border border-foreground p-0.5 text-center text-foreground text-xs font-semibold" style={{ width: "20%" }}>Model/MT</th>
@@ -92,7 +92,7 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
     {/* Signature Section */}
     <table className="w-full border-collapse border border-foreground" style={{ tableLayout: "fixed" }}>
       <thead>
-        <tr className="h-6 bg-muted/30">
+        <tr className="h-6">
           <th className="border border-foreground p-0.5 text-foreground text-xs font-semibold w-1/3">Dispatched By</th>
           <th className="border border-foreground p-0.5 text-foreground text-xs font-semibold w-1/3">Received By</th>
           <th className="border border-foreground p-0.5 text-foreground text-xs font-semibold w-1/3">Authorized By</th>
