@@ -1,5 +1,5 @@
 import { GatePassData, GatePassWithMeta } from "@/types/gatepass";
-import { generateGatePassNumber } from "@/utils/gatepassNumber";
+import { generateGatePassNumber, getGatePassDateKey } from "@/utils/gatepassNumber";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/gatepass`;
@@ -13,6 +13,9 @@ interface ApiPayload {
   through: string;
   mobileNo?: string;
   createdBy?: string;
+  modifiedBy?: string | null;
+  modifiedAt?: string | null;
+  isEnable?: number;
   items: Array<{
     slNo: number;
     description: string;
@@ -61,6 +64,39 @@ function formatApiDate(date: Date | string): string {
 }
 
 export class GatePassService {
+  private static async fetchLastGatePassNoForDate(
+    date: Date | string
+  ): Promise<string | undefined> {
+    const dateKey = getGatePassDateKey(date);
+    const prefix = `SDLGP${dateKey}-`;
+
+    const gatePasses = await this.fetchGatePasses();
+
+    let maxSequence = 0;
+    let lastGatePassNo: string | undefined;
+
+    for (const gatePass of gatePasses) {
+      const gatepassNo = gatePass.gatepassNo?.trim();
+      if (!gatepassNo || !gatepassNo.startsWith(prefix)) {
+        continue;
+      }
+
+      const rawSequence = gatepassNo.slice(prefix.length);
+      const parsedSequence = Number.parseInt(rawSequence, 10);
+
+      if (!Number.isFinite(parsedSequence)) {
+        continue;
+      }
+
+      if (parsedSequence > maxSequence) {
+        maxSequence = parsedSequence;
+        lastGatePassNo = gatepassNo;
+      }
+    }
+
+    return lastGatePassNo;
+  }
+
   /**
    * Create a new gate pass in the database
    * @param data - Gate pass data from form
@@ -73,7 +109,18 @@ export class GatePassService {
     createdBy: string
   ): Promise<{ id: string; gatepassNo: string }> {
     const id = generateId();
-    const gatepassNo = generateGatePassNumber();
+
+    let gatepassNo = "";
+    try {
+      const lastGatePassNo = await GatePassService.fetchLastGatePassNoForDate(
+        data.date
+      );
+      gatepassNo = generateGatePassNumber(lastGatePassNo, data.date);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to get last gate pass";
+      throw new Error(`Failed to generate gate pass number: ${errorMessage}`);
+    }
     
     // Format date to IST (Indian Standard Time)
     const dateString = convertToIST(data.date);
@@ -88,6 +135,7 @@ export class GatePassService {
       through: data.through,
       mobileNo: data.mobileNo,
       createdBy,
+      isEnable: data.isEnable === undefined ? 1 : data.isEnable ? 1 : 0,
       items: data.items,
     };
 
@@ -179,6 +227,24 @@ export class GatePassService {
           id: item.id,
           createdBy: item.createdBy,
           createdAt: new Date(item.createdAt),
+          modifiedBy: item.modifiedBy ?? null,
+          modifiedAt: item.modifiedAt ? new Date(item.modifiedAt) : null,
+          isEnable: (() => {
+            const rawValue = item.isEnable;
+            if (rawValue === undefined || rawValue === null) {
+              return true;
+            }
+            if (typeof rawValue === "boolean") {
+              return rawValue;
+            }
+            if (typeof rawValue === "number") {
+              return rawValue !== 0;
+            }
+            if (typeof rawValue === "string") {
+              return rawValue !== "0";
+            }
+            return Boolean(rawValue);
+          })(),
           userName: item.userName,
         }));
       }
@@ -203,6 +269,10 @@ export class GatePassService {
     updatedBy?: string
   ): Promise<void> {
     const dateString = formatApiDate(data.date);
+    const modifiedBy = updatedBy ?? data.modifiedBy ?? null;
+    const modifiedAt = updatedBy ? new Date() : data.modifiedAt ?? null;
+    const isEnable =
+      data.isEnable === undefined ? undefined : data.isEnable ? 1 : 0;
 
     const payload: ApiPayload = {
       id: data.id,
@@ -213,6 +283,9 @@ export class GatePassService {
       through: data.through,
       mobileNo: data.mobileNo,
       createdBy: data.createdBy,
+      modifiedBy,
+      modifiedAt: modifiedAt ? formatApiDate(modifiedAt) : null,
+      ...(isEnable === undefined ? {} : { isEnable }),
       items: data.items,
     };
 

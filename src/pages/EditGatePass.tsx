@@ -90,6 +90,17 @@ const EditGatePass = () => {
       return;
     }
 
+    if (gatePass.isEnable === false) {
+      const message = "This gate pass is disabled and cannot be edited.";
+      setError(message);
+      toast({
+        title: "Action blocked",
+        description: message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const userName = localStorage.getItem("username") || user?.name || gatePass.createdBy;
 
     setIsSaving(true);
@@ -102,6 +113,7 @@ const EditGatePass = () => {
           id: gatePass.id,
           gatepassNo: gatePass.gatepassNo,
           createdBy: gatePass.createdBy ?? userName,
+          isEnable: gatePass.isEnable ?? true,
         },
         userName
       );
@@ -178,6 +190,16 @@ const EditGatePass = () => {
               </div>
             </Card>
 
+            {gatePass.isEnable === false ? (
+              <Card className="p-6 border-destructive/40 bg-destructive/10">
+                <p className="text-destructive text-sm">
+                  This gate pass is disabled. Enable it from the dashboard to make changes.
+                </p>
+                <Button onClick={handleViewDashboard} className="mt-4">
+                  Back to Dashboard
+                </Button>
+              </Card>
+            ) : (
             <GatePassForm
               initialData={gatePass}
               onSubmit={handleFormSubmit}
@@ -186,6 +208,7 @@ const EditGatePass = () => {
               isLoading={isSaving}
               error={error ?? undefined}
             />
+            )}
           </div>
         ) : !error ? (
           <Card className="p-8 text-center border-dashed">

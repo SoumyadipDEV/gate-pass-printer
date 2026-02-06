@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet } from "lucide-react";
+import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
 import { GatePassPrint } from "@/components/GatePassPrint";
@@ -24,7 +24,7 @@ import * as XLSX from "xlsx";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { logout } = useUser();
+  const { logout, user } = useUser();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [gatePassList, setGatePassList] = useState<GatePassWithMeta[]>([]);
@@ -35,6 +35,7 @@ const Dashboard = () => {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFromDate, setExportFromDate] = useState("");
   const [exportToDate, setExportToDate] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch gate passes from API using service
@@ -141,11 +142,27 @@ const Dashboard = () => {
   };
 
   const handlePrintGatePass = (gatePass: GatePassWithMeta) => {
+    if (!isGatePassEnabled(gatePass.isEnable)) {
+      toast({
+        title: "Action blocked",
+        description: "Disabled gate passes cannot be printed.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedGatePass(gatePass);
     setShouldPrint(true);
   };
 
   const handleEditGatePass = (gatePass: GatePassWithMeta) => {
+    if (!isGatePassEnabled(gatePass.isEnable)) {
+      toast({
+        title: "Action blocked",
+        description: "Disabled gate passes cannot be edited.",
+        variant: "destructive",
+      });
+      return;
+    }
     navigate(`/edit/${gatePass.id}`, { state: { gatePass } });
   };
 
@@ -158,11 +175,36 @@ const Dashboard = () => {
     return new Date(year, month - 1, day);
   };
 
+  const resolveUserName = (fallback?: string) =>
+    localStorage.getItem("username") || user?.name || fallback || "";
+
+  const isGatePassEnabled = (value?: boolean | number | string | null) => {
+    if (value === undefined || value === null) {
+      return true;
+    }
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (typeof value === "number") {
+      return value !== 0;
+    }
+    if (typeof value === "string") {
+      return value !== "0";
+    }
+    return Boolean(value);
+  };
+
   // Format date as DD-MM-YYYY
-  const formatDate = (dateString: string | Date): string => {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+  const formatDate = (dateString?: string | Date | null): string => {
+    if (!dateString) {
+      return "-";
+    }
+    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
@@ -219,6 +261,9 @@ const Dashboard = () => {
         "Mobile No": gatePass.mobileNo || "",
         "Created By": gatePass.userName || gatePass.createdBy || "",
         "Created Date": gatePass.createdAt ? formatDate(gatePass.createdAt) : "",
+        "Modified By": gatePass.modifiedBy || "",
+        "Modified Date": gatePass.modifiedAt ? formatDate(gatePass.modifiedAt) : "",
+        "Is Enabled": isGatePassEnabled(gatePass.isEnable) ? "Yes" : "No",
       };
 
       if (!gatePass.items || gatePass.items.length === 0) {
@@ -256,6 +301,61 @@ const Dashboard = () => {
       description: `Downloaded ${filtered.length} gate pass${filtered.length === 1 ? "" : "es"} in Excel format.`,
     });
     setExportOpen(false);
+  };
+
+  const handleToggleGatePass = async (gatePass: GatePassWithMeta) => {
+    const userName = resolveUserName(gatePass.createdBy);
+    if (!userName) {
+      toast({
+        title: "User not found",
+        description: "Please login again to update gate pass status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextIsEnabled = !isGatePassEnabled(gatePass.isEnable);
+    setUpdatingId(gatePass.id);
+
+    try {
+      await GatePassService.updateGatePass(
+        {
+          ...gatePass,
+          isEnable: nextIsEnabled,
+        },
+        userName
+      );
+
+      const updatedGatePass = {
+        ...gatePass,
+        isEnable: nextIsEnabled,
+        modifiedBy: userName,
+        modifiedAt: new Date(),
+      };
+
+      setGatePassList((prev) =>
+        prev.map((item) => (item.id === gatePass.id ? updatedGatePass : item))
+      );
+
+      if (selectedGatePass?.id === gatePass.id) {
+        setSelectedGatePass(updatedGatePass);
+      }
+
+      toast({
+        title: "Status updated",
+        description: `Gate pass ${nextIsEnabled ? "enabled" : "disabled"} successfully.`,
+        variant: "default",
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update gate pass status";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   return (
@@ -397,31 +497,53 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-2">
                   {/* Table Header */}
-                  <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
-                    <div className="col-span-2">GatePass No</div>
-                    <div className="col-span-2">Destination</div>
-                    <div className="col-span-2">Carried By</div>
-                    <div className="col-span-2">Mobile No</div>
-                    <div className="col-span-1">Created Date</div>
-                    <div className="col-span-1">Created By</div>
-                    <div className="col-span-2">Action</div>
+                  <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_2fr] gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
+                    <div>GatePass No</div>
+                    <div>Destination</div>
+                    <div>Carried By</div>
+                    <div>Mobile No</div>
+                    <div>Created Date</div>
+                    <div>Created By</div>
+                    <div>Modified Date</div>
+                    <div>Modified By</div>
+                    <div>Action</div>
                   </div>
 
                   {/* Table Rows */}
-                  {filteredGatePasses.map((gatePass) => (
+                  {filteredGatePasses.map((gatePass) => {
+                    const isEnabled = isGatePassEnabled(gatePass.isEnable);
+                    const isUpdating = updatingId === gatePass.id;
+                    return (
                     <Card
                       key={gatePass.id}
-                      onClick={() => setSelectedGatePass(gatePass)}
-                      className="p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/50 hover:bg-card/80 group"
+                      onClick={() => {
+                        if (!isEnabled) {
+                          return;
+                        }
+                        setSelectedGatePass(gatePass);
+                      }}
+                      className={`p-4 transition-all duration-200 group ${
+                        isEnabled
+                          ? "cursor-pointer hover:shadow-md hover:border-primary/50 hover:bg-card/80"
+                          : "cursor-not-allowed opacity-70"
+                      }`}
                     >
                       {/* Mobile View */}
                       <div className="md:hidden space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="font-semibold text-foreground text-lg">{gatePass.gatepassNo}</p>
-                          <div className="flex gap-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-foreground text-lg">{gatePass.gatepassNo}</p>
+                            {!isEnabled && (
+                              <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
+                                Disabled
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-wrap">
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={!isEnabled}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handlePrintGatePass(gatePass);
@@ -434,6 +556,7 @@ const Dashboard = () => {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={!isEnabled}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditGatePass(gatePass);
@@ -445,7 +568,25 @@ const Dashboard = () => {
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              disabled={isUpdating}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleGatePass(gatePass);
+                              }}
+                              className="gap-1"
+                            >
+                              {isEnabled ? (
+                                <ToggleLeft className="w-4 h-4" />
+                              ) : (
+                                <ToggleRight className="w-4 h-4" />
+                              )}
+                              <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="destructive"
+                              disabled
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteGatePass(gatePass.id);
@@ -480,42 +621,72 @@ const Dashboard = () => {
                               {gatePass.userName || gatePass.createdBy}
                             </p>
                           </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Modified Date</p>
+                            <p className="text-foreground font-medium">
+                              {formatDate(gatePass.modifiedAt)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Modified By</p>
+                            <p className="text-foreground font-medium whitespace-normal break-words">
+                              {gatePass.modifiedBy || "-"}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
                       {/* Desktop View */}
-                      <div className="hidden md:grid grid-cols-12 gap-3 items-center py-2">
-                        <div className="col-span-2">
-                          <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
+                      <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_2fr] gap-3 items-center py-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
+                            {!isEnabled && (
+                              <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
+                                Disabled
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <p className="text-foreground truncate">{gatePass.destination}</p>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <p className="text-foreground truncate">{gatePass.carriedBy}</p>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <p className="text-foreground truncate">{gatePass.mobileNo || "-"}</p>
                         </div>
-                        <div className="col-span-1">
+                        <div>
                           <p className="text-sm text-muted-foreground">
                             {formatDate(gatePass.createdAt)}
                           </p>
                         </div>
-                        <div className="col-span-1">
+                        <div>
                           <p className="text-foreground text-sm whitespace-normal break-words">
                             {gatePass.userName || gatePass.createdBy}
                           </p>
                         </div>
-                        <div className="col-span-2 flex gap-1">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(gatePass.modifiedAt)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-foreground text-sm whitespace-normal break-words">
+                            {gatePass.modifiedBy || "-"}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
                           <Button
                             size="sm"
                             variant="outline"
+                            disabled={!isEnabled}
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePrintGatePass(gatePass);
                             }}
-                            className="gap-1 flex-1"
+                            className="gap-1"
                           >
                             <Printer className="w-4 h-4" />
                             <span className="text-xs">Print</span>
@@ -523,18 +694,37 @@ const Dashboard = () => {
                           <Button
                             size="sm"
                             variant="outline"
+                            disabled={!isEnabled}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditGatePass(gatePass);
                             }}
-                            className="gap-1 flex-1"
+                            className="gap-1"
                           >
                             <Pencil className="w-4 h-4" />
                             <span className="text-xs">Edit</span>
                           </Button>
                           <Button
                             size="sm"
+                            variant="outline"
+                            disabled={isUpdating}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleGatePass(gatePass);
+                            }}
+                            className="gap-1"
+                          >
+                            {isEnabled ? (
+                              <ToggleLeft className="w-4 h-4" />
+                            ) : (
+                              <ToggleRight className="w-4 h-4" />
+                            )}
+                            <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
+                          </Button>
+                          <Button
+                            size="sm"
                             variant="destructive"
+                            disabled
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteGatePass(gatePass.id);
@@ -546,7 +736,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                     </Card>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>

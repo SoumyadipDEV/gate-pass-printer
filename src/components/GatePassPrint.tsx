@@ -35,13 +35,19 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
 
     {/* Authorization Text */}
     <p className="text-xs mb-1.5 text-foreground leading-tight">
-      It is hereby authorized to the bearer to carry the below mentioned items. Please allow him/her to carry the items to our center. All the items are only for stock transfer, It has commercial value.
+      It is hereby authorized to the bearer to carry the below mentioned items. <br/>
+      Please allow him/her to carry the items to our center. All the items are only for stock transfer, It has commercial value.
     </p>
 
     {/* Gate Pass Details */}
     <div className="flex justify-between mb-1.5 text-xs">
       <p className="font-semibold text-foreground text-sm">GatePass No. {data.gatepassNo}</p>
-      <p className="font-semibold text-foreground text-sm">Date: {formatDate(data.date)}</p>
+      <div className="text-right">
+        <p className="font-semibold text-foreground text-sm">Date: {formatDate(data.date)}</p>
+        {data.modifiedAt ? (
+          <p className="text-foreground text-[0.7rem]">Modified Date: {formatDate(data.modifiedAt)}</p>
+        ) : null}
+      </div>
     </div>
 
     {/* Items Table */}

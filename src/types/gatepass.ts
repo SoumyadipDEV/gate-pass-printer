@@ -16,6 +16,9 @@ export interface GatePassData {
   mobileNo?: string;
   id?: string;
   createdBy?: string;
+  modifiedBy?: string | null;
+  modifiedAt?: Date | string | null;
+  isEnable?: boolean;
 }
 
 export interface GatePassApiResponse {
@@ -29,6 +32,9 @@ export interface GatePassApiResponse {
   id: string;
   createdBy: string;
   createdAt: string;
+  modifiedBy?: string | null;
+  modifiedAt?: string | null;
+  isEnable?: number | boolean;
 }
 
 export interface GatePassWithMeta extends GatePassData {

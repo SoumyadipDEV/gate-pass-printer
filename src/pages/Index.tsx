@@ -53,6 +53,9 @@ const Index = () => {
         createdBy: userName,
         createdAt: new Date(),
         userName: userName,
+        isEnable: true,
+        modifiedBy: null,
+        modifiedAt: null,
       };
 
       setGatePassData(responseData);
