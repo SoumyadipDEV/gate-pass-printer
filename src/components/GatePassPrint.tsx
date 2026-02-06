@@ -43,10 +43,9 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
     <div className="flex justify-between mb-1.5 text-xs">
       <p className="font-semibold text-foreground text-sm">GatePass No. {data.gatepassNo}</p>
       <div className="text-right">
-        <p className="font-semibold text-foreground text-sm">Date: {formatDate(data.date)}</p>
-        {data.modifiedAt ? (
-          <p className="text-foreground text-[0.7rem]">Modified Date: {formatDate(data.modifiedAt)}</p>
-        ) : null}
+        <p className="font-semibold text-foreground text-sm">
+          {data.modifiedAt ? "Date" : "Date"}: {formatDate(data.modifiedAt ?? data.date)}
+        </p>
       </div>
     </div>
 
@@ -83,10 +82,10 @@ const GatePassContent = ({ data }: { data: GatePassData }) => (
         <span className="font-semibold">Carried by:</span> {data.carriedBy}
       </p>
       <p className="text-foreground leading-tight flex-1 min-w-[160px] text-sm">
-        <span className="font-semibold">Through:</span> {data.through}
+        <span className="font-semibold">Mobile No:</span> {data.mobileNo || "-"}
       </p>
       <p className="text-foreground leading-tight flex-1 min-w-[160px] text-sm">
-        <span className="font-semibold">Mobile No:</span> {data.mobileNo || "-"}
+        <span className="font-semibold">Through:</span> {data.through}
       </p>
     </div>
 
