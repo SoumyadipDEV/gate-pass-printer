@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight } from "lucide-react";
+import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight, UserPlus } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
 import { GatePassPrint } from "@/components/GatePassPrint";
@@ -21,6 +21,7 @@ import { useReactToPrint } from "react-to-print";
 import { GatePassService } from "@/services/gatepassService";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
+import { Switch } from "@/components/ui/switch";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -36,6 +37,12 @@ const Dashboard = () => {
   const [exportFromDate, setExportFromDate] = useState("");
   const [exportToDate, setExportToDate] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [isUserActive, setIsUserActive] = useState(true);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch gate passes from API using service
@@ -210,6 +217,25 @@ const Dashboard = () => {
   };
 
   const handleExport = () => {
+    type ExportRow = {
+      "GatePass No": string;
+      "GatePass Date": string;
+      Destination: string;
+      "Carried By": string;
+      Through: string;
+      "Mobile No": string;
+      "Created By": string;
+      "Created Date": string;
+      "Modified By": string;
+      "Modified Date": string;
+      "Is Enabled": "Yes" | "No";
+      "Item Sl No": string | number;
+      "Item Description": string;
+      "Item Model": string;
+      "Item Serial No": string;
+      "Item Qty": string | number;
+    };
+
     const fromDate = parseLocalDate(exportFromDate);
     const toDate = parseLocalDate(exportToDate);
 
@@ -251,9 +277,12 @@ const Dashboard = () => {
       return;
     }
 
-    const rows = filtered.flatMap((gatePass) => {
-      const headerData = {
-        "GatePass No": gatePass.gatepassNo,
+    const rows = filtered.flatMap<ExportRow>((gatePass) => {
+      const headerData: Omit<
+        ExportRow,
+        "Item Sl No" | "Item Description" | "Item Model" | "Item Serial No" | "Item Qty"
+      > = {
+        "GatePass No": gatePass.gatepassNo || "",
         "GatePass Date": gatePass.date ? formatDate(gatePass.date) : "",
         Destination: gatePass.destination,
         "Carried By": gatePass.carriedBy,
@@ -279,7 +308,7 @@ const Dashboard = () => {
         ];
       }
 
-      return gatePass.items.map((item) => ({
+      return gatePass.items.map<ExportRow>((item) => ({
         ...headerData,
         "Item Sl No": item.slNo,
         "Item Description": item.description,
@@ -316,11 +345,23 @@ const Dashboard = () => {
 
     const nextIsEnabled = !isGatePassEnabled(gatePass.isEnable);
     setUpdatingId(gatePass.id);
+    const gatepassNo = gatePass.gatepassNo;
+
+    if (!gatepassNo) {
+      toast({
+        title: "Missing gate pass number",
+        description: "Cannot update gate pass status because gatepassNo is missing.",
+        variant: "destructive",
+      });
+      setUpdatingId(null);
+      return;
+    }
 
     try {
       await GatePassService.updateGatePass(
         {
           ...gatePass,
+          gatepassNo,
           isEnable: nextIsEnabled,
         },
         userName
@@ -358,6 +399,64 @@ const Dashboard = () => {
     }
   };
 
+  const resetUserForm = () => {
+    setNewUserEmail("");
+    setNewUserName("");
+    setNewUserPassword("");
+    setIsUserActive(true);
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail.trim() || !newUserName.trim() || !newUserPassword.trim()) {
+      toast({
+        title: "Missing details",
+        description: "Email, user name and password are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${apiUrl}/api/createlogin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: newUserEmail.trim(),
+          userName: newUserName.trim(),
+          password: newUserPassword,
+          isActive: isUserActive ? 1 : 0,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.success === false) {
+        const message = data?.message || "Failed to create user";
+        throw new Error(message);
+      }
+
+      toast({
+        title: "User created",
+        description: data?.message || "User created successfully.",
+        variant: "default",
+      });
+      resetUserForm();
+      setUserDialogOpen(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create user";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -368,6 +467,95 @@ const Dashboard = () => {
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
           </div>
           <div className="flex gap-2">
+            <Dialog
+              open={userDialogOpen}
+              onOpenChange={(open) => {
+                setUserDialogOpen(open);
+                if (!open) {
+                  resetUserForm();
+                  setIsCreatingUser(false);
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New User</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogDescription>
+                    Add a login by providing email, user name and password. Users are active by default.
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreateUser();
+                  }}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-email">Email</Label>
+                    <Input
+                      id="new-user-email"
+                      type="email"
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-name">User Name</Label>
+                    <Input
+                      id="new-user-name"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      autoComplete="username"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-password">Password</Label>
+                    <Input
+                      id="new-user-password"
+                      type="password"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Active user</p>
+                      <p className="text-xs text-muted-foreground">Toggle off to create an inactive login.</p>
+                    </div>
+                    <Switch
+                      id="new-user-active"
+                      checked={isUserActive}
+                      onCheckedChange={setIsUserActive}
+                    />
+                  </div>
+                  <DialogFooter className="sm:justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setUserDialogOpen(false)}
+                      disabled={isCreatingUser}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isCreatingUser}>
+                      {isCreatingUser ? "Creating..." : "Create User"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
             <Dialog open={exportOpen} onOpenChange={setExportOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="flex gap-2">
