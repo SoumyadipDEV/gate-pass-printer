@@ -16,9 +16,11 @@ interface ApiPayload {
   modifiedBy?: string | null;
   modifiedAt?: string | null;
   isEnable?: number;
+  returnable?: number;
   items: Array<{
     slNo: number;
     description: string;
+    makeItem?: string;
     model: string;
     serialNo: string;
     qty: number;
@@ -61,6 +63,22 @@ function formatApiDate(date: Date | string): string {
     return date;
   }
   return convertToIST(date);
+}
+
+function coerceBoolean(value: unknown, defaultValue = false): boolean {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    return value !== "0";
+  }
+  return Boolean(value);
 }
 
 export class GatePassService {
@@ -136,7 +154,15 @@ export class GatePassService {
       mobileNo: data.mobileNo,
       createdBy,
       isEnable: data.isEnable === undefined ? 1 : data.isEnable ? 1 : 0,
-      items: data.items,
+      returnable: coerceBoolean(data.returnable) ? 1 : 0,
+      items: data.items.map((item) => ({
+        slNo: item.slNo,
+        description: item.description,
+        makeItem: item.makeItem ?? "",
+        model: item.model,
+        serialNo: item.serialNo,
+        qty: item.qty,
+      })),
     };
 
     try {
@@ -219,7 +245,14 @@ export class GatePassService {
         return result.data.map((item: any) => ({
           gatepassNo: item.gatepassNo,
           date: item.date,
-          items: item.items,
+          items: (item.items || []).map((line: any, index: number) => ({
+            slNo: line.slNo ?? index + 1,
+            description: line.description ?? "",
+            makeItem: line.makeItem ?? "",
+            model: line.model ?? "",
+            serialNo: line.serialNo ?? "",
+            qty: line.qty ?? 0,
+          })),
           destination: item.destination,
           carriedBy: item.carriedBy,
           through: item.through,
@@ -229,22 +262,8 @@ export class GatePassService {
           createdAt: new Date(item.createdAt),
           modifiedBy: item.modifiedBy ?? null,
           modifiedAt: item.modifiedAt ? new Date(item.modifiedAt) : null,
-          isEnable: (() => {
-            const rawValue = item.isEnable;
-            if (rawValue === undefined || rawValue === null) {
-              return true;
-            }
-            if (typeof rawValue === "boolean") {
-              return rawValue;
-            }
-            if (typeof rawValue === "number") {
-              return rawValue !== 0;
-            }
-            if (typeof rawValue === "string") {
-              return rawValue !== "0";
-            }
-            return Boolean(rawValue);
-          })(),
+          isEnable: coerceBoolean(item.isEnable, true),
+          returnable: coerceBoolean(item.returnable ?? item.Returnable, false),
           userName: item.userName,
         }));
       }
@@ -273,6 +292,12 @@ export class GatePassService {
     const modifiedAt = updatedBy ? new Date() : data.modifiedAt ?? null;
     const isEnable =
       data.isEnable === undefined ? undefined : data.isEnable ? 1 : 0;
+    const returnable =
+      data.returnable === undefined
+        ? undefined
+        : coerceBoolean(data.returnable)
+          ? 1
+          : 0;
 
     const payload: ApiPayload = {
       id: data.id,
@@ -286,7 +311,15 @@ export class GatePassService {
       modifiedBy,
       modifiedAt: modifiedAt ? formatApiDate(modifiedAt) : null,
       ...(isEnable === undefined ? {} : { isEnable }),
-      items: data.items,
+      ...(returnable === undefined ? {} : { returnable }),
+      items: data.items.map((item) => ({
+        slNo: item.slNo,
+        description: item.description,
+        makeItem: item.makeItem ?? "",
+        model: item.model,
+        serialNo: item.serialNo,
+        qty: item.qty,
+      })),
     };
 
     try {

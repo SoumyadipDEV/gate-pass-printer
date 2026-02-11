@@ -1,6 +1,7 @@
 export interface GatePassItem {
   slNo: number;
   description: string;
+  makeItem?: string;
   model: string;
   serialNo: string;
   qty: number;
@@ -19,6 +20,7 @@ export interface GatePassData {
   modifiedBy?: string | null;
   modifiedAt?: Date | string | null;
   isEnable?: boolean;
+  returnable?: boolean | number | null;
 }
 
 export interface GatePassApiResponse {
@@ -35,6 +37,7 @@ export interface GatePassApiResponse {
   modifiedBy?: string | null;
   modifiedAt?: string | null;
   isEnable?: number | boolean;
+  returnable?: number | boolean | null;
 }
 
 export interface GatePassWithMeta extends GatePassData {
@@ -42,4 +45,5 @@ export interface GatePassWithMeta extends GatePassData {
   createdBy: string;
   createdAt: Date | string;
   userName?: string;
+  returnable?: boolean | null;
 }

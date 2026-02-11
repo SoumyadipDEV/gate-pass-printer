@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Printer } from "lucide-react";
 import { GatePassItem, GatePassData } from "@/types/gatepass";
 
@@ -23,13 +24,33 @@ const throughOptions = [
   "House Keeping"
 ];
 
-const EMPTY_ITEM: GatePassItem = { slNo: 1, description: "", model: "", serialNo: "", qty: 1 };
+const EMPTY_ITEM: GatePassItem = { slNo: 1, description: "", makeItem: "", model: "", serialNo: "", qty: 1 };
 
 const normalizeItems = (items?: GatePassItem[]) => {
   if (!items || items.length === 0) {
     return [EMPTY_ITEM];
   }
-  return items.map((item, index) => ({ ...item, slNo: index + 1 }));
+  return items.map((item, index) => ({
+    ...item,
+    slNo: index + 1,
+    makeItem: item.makeItem ?? "",
+  }));
+};
+
+const toBoolean = (value: unknown, defaultValue = false) => {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    return value !== "0";
+  }
+  return Boolean(value);
 };
 
 export function GatePassForm({
@@ -45,6 +66,7 @@ export function GatePassForm({
   const [carriedBy, setCarriedBy] = useState(initialData?.carriedBy ?? "");
   const [through, setThrough] = useState(initialData?.through ?? "");
   const [mobileNo, setMobileNo] = useState(initialData?.mobileNo ?? "");
+  const [returnable, setReturnable] = useState<boolean>(toBoolean(initialData?.returnable));
   const resolvedSubmitIcon = submitIcon ?? <Printer className="w-5 h-5 mr-2" />;
 
   useEffect(() => {
@@ -56,12 +78,13 @@ export function GatePassForm({
     setCarriedBy(initialData.carriedBy ?? "");
     setThrough(initialData.through ?? "");
     setMobileNo(initialData.mobileNo ?? "");
+    setReturnable(toBoolean(initialData.returnable));
   }, [initialData]);
 
   const addItem = () => {
     setItems([
       ...items,
-      { slNo: items.length + 1, description: "", model: "", serialNo: "", qty: 1 }
+      { slNo: items.length + 1, description: "", makeItem: "", model: "", serialNo: "", qty: 1 }
     ]);
   };
 
@@ -91,6 +114,7 @@ export function GatePassForm({
       carriedBy,
       through,
       mobileNo,
+      returnable,
       gatepassNo: initialData?.gatepassNo,
       id: initialData?.id,
       createdBy: initialData?.createdBy,
@@ -128,9 +152,10 @@ export function GatePassForm({
               <div className="grid grid-cols-12 gap-2 p-3 bg-muted/30 font-semibold text-sm">
                 <div className="col-span-1">SI No</div>
                 <div className="col-span-3">Description</div>
+                <div className="col-span-2">Make Item</div>
                 <div className="col-span-2">Model/MT</div>
-                <div className="col-span-3">SRL No</div>
-                <div className="col-span-2">QTY</div>
+                <div className="col-span-2">SRL No</div>
+                <div className="col-span-1 text-center">QTY</div>
                 <div className="col-span-1"></div>
               </div>
               
@@ -154,19 +179,26 @@ export function GatePassForm({
                   </div>
                   <div className="col-span-2">
                     <Input
+                      value={item.makeItem ?? ""}
+                      onChange={(e) => updateItem(index, "makeItem", e.target.value)}
+                      placeholder="Make / Item"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Input
                       value={item.model}
                       onChange={(e) => updateItem(index, "model", e.target.value)}
                       placeholder="Model"
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Input
                       value={item.serialNo}
                       onChange={(e) => updateItem(index, "serialNo", e.target.value)}
                       placeholder="Serial number"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <Input
                       type="number"
                       min="1"
@@ -191,7 +223,7 @@ export function GatePassForm({
               ))}
             </div>
           </div>
-         </div>
+        </div>
 
           {/* Other Fields */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -243,6 +275,17 @@ export function GatePassForm({
                 required
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id="returnable"
+              checked={returnable}
+              onCheckedChange={(checked) => setReturnable(Boolean(checked))}
+            />
+            <Label htmlFor="returnable" className="text-sm font-medium leading-none">
+              Returnable Items
+            </Label>
           </div>
 
           {/* Submit Button */}

@@ -201,6 +201,22 @@ const Dashboard = () => {
     return Boolean(value);
   };
 
+  const isReturnablePass = (value?: boolean | number | string | null) => {
+    if (value === undefined || value === null) {
+      return false;
+    }
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (typeof value === "number") {
+      return value !== 0;
+    }
+    if (typeof value === "string") {
+      return value !== "0";
+    }
+    return Boolean(value);
+  };
+
   // Format date as DD-MM-YYYY
   const formatDate = (dateString?: string | Date | null): string => {
     if (!dateString) {
@@ -229,8 +245,10 @@ const Dashboard = () => {
       "Modified By": string;
       "Modified Date": string;
       "Is Enabled": "Yes" | "No";
+      Returnable: "Yes" | "No";
       "Item Sl No": string | number;
       "Item Description": string;
+      "Item Make": string;
       "Item Model": string;
       "Item Serial No": string;
       "Item Qty": string | number;
@@ -293,6 +311,7 @@ const Dashboard = () => {
         "Modified By": gatePass.modifiedBy || "",
         "Modified Date": gatePass.modifiedAt ? formatDate(gatePass.modifiedAt) : "",
         "Is Enabled": isGatePassEnabled(gatePass.isEnable) ? "Yes" : "No",
+        Returnable: isReturnablePass(gatePass.returnable) ? "Yes" : "No",
       };
 
       if (!gatePass.items || gatePass.items.length === 0) {
@@ -301,6 +320,7 @@ const Dashboard = () => {
             ...headerData,
             "Item Sl No": "",
             "Item Description": "",
+            "Item Make": "",
             "Item Model": "",
             "Item Serial No": "",
             "Item Qty": "",
@@ -312,6 +332,7 @@ const Dashboard = () => {
         ...headerData,
         "Item Sl No": item.slNo,
         "Item Description": item.description,
+        "Item Make": item.makeItem ?? "",
         "Item Model": item.model,
         "Item Serial No": item.serialNo,
         "Item Qty": item.qty,
@@ -685,8 +706,9 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-2">
                   {/* Table Header */}
-                  <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_2fr] gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
+                  <div className="hidden md:grid grid-cols-[1.2fr_0.9fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_1fr_1.8fr] gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
                     <div>GatePass No</div>
+                    <div>Returnable</div>
                     <div>Destination</div>
                     <div>Carried By</div>
                     <div>Mobile No</div>
@@ -700,6 +722,7 @@ const Dashboard = () => {
                   {/* Table Rows */}
                   {filteredGatePasses.map((gatePass) => {
                     const isEnabled = isGatePassEnabled(gatePass.isEnable);
+                    const isReturnable = isReturnablePass(gatePass.returnable);
                     const isUpdating = updatingId === gatePass.id;
                     return (
                     <Card
@@ -721,6 +744,15 @@ const Dashboard = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-foreground text-lg">{gatePass.gatepassNo}</p>
+                            <span
+                              className={`text-xs font-semibold border px-2 py-0.5 rounded-full ${
+                                isReturnable
+                                  ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                                  : "text-muted-foreground border-border bg-muted/40"
+                              }`}
+                            >
+                              {isReturnable ? "Returnable" : "Non-returnable"}
+                            </span>
                             {!isEnabled && (
                               <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
                                 Disabled
@@ -798,6 +830,10 @@ const Dashboard = () => {
                             <p className="text-foreground font-medium truncate">{gatePass.mobileNo || "-"}</p>
                           </div>
                           <div>
+                            <p className="text-muted-foreground text-xs">Returnable</p>
+                            <p className="text-foreground font-medium">{isReturnable ? "Yes" : "No"}</p>
+                          </div>
+                          <div>
                             <p className="text-muted-foreground text-xs">Created Date</p>
                             <p className="text-foreground font-medium">
                               {formatDate(gatePass.createdAt)}
@@ -825,7 +861,7 @@ const Dashboard = () => {
                       </div>
 
                       {/* Desktop View */}
-                      <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_2fr] gap-3 items-center py-2">
+                      <div className="hidden md:grid grid-cols-[1.2fr_0.9fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_1fr_1.8fr] gap-3 items-center py-2">
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
@@ -835,6 +871,17 @@ const Dashboard = () => {
                               </span>
                             )}
                           </div>
+                        </div>
+                        <div>
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                              isReturnable
+                                ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                                : "text-muted-foreground border-border bg-muted/40"
+                            }`}
+                          >
+                            {isReturnable ? "Returnable" : "Non-returnable"}
+                          </span>
                         </div>
                         <div>
                           <p className="text-foreground truncate">{gatePass.destination}</p>
