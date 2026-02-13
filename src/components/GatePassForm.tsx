@@ -24,6 +24,9 @@ const throughOptions = [
   "House Keeping"
 ];
 
+const TEXT_FIELD_MAX_LENGTH = 500;
+const MAX_ITEMS = 3;
+
 const EMPTY_ITEM: GatePassItem = { slNo: 1, description: "", makeItem: "", model: "", serialNo: "", qty: 1 };
 
 const normalizeItems = (items?: GatePassItem[]) => {
@@ -82,6 +85,9 @@ export function GatePassForm({
   }, [initialData]);
 
   const addItem = () => {
+    if (items.length >= MAX_ITEMS) {
+      return;
+    }
     setItems([
       ...items,
       { slNo: items.length + 1, description: "", makeItem: "", model: "", serialNo: "", qty: 1 }
@@ -142,7 +148,13 @@ export function GatePassForm({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-lg font-semibold text-foreground">Items</Label>
-              <Button type="button" onClick={addItem} variant="outline" size="sm">
+              <Button
+                type="button"
+                onClick={addItem}
+                variant="outline"
+                size="sm"
+                disabled={items.length >= MAX_ITEMS}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Item
               </Button>
@@ -174,6 +186,7 @@ export function GatePassForm({
                       value={item.description}
                       onChange={(e) => updateItem(index, "description", e.target.value)}
                       placeholder="Item description"
+                      maxLength={TEXT_FIELD_MAX_LENGTH}
                       required
                     />
                   </div>
@@ -182,6 +195,7 @@ export function GatePassForm({
                       value={item.makeItem ?? ""}
                       onChange={(e) => updateItem(index, "makeItem", e.target.value)}
                       placeholder="Make / Item"
+                      maxLength={TEXT_FIELD_MAX_LENGTH}
                     />
                   </div>
                   <div className="col-span-2">
@@ -189,6 +203,7 @@ export function GatePassForm({
                       value={item.model}
                       onChange={(e) => updateItem(index, "model", e.target.value)}
                       placeholder="Model"
+                      maxLength={TEXT_FIELD_MAX_LENGTH}
                     />
                   </div>
                   <div className="col-span-2">
@@ -196,6 +211,7 @@ export function GatePassForm({
                       value={item.serialNo}
                       onChange={(e) => updateItem(index, "serialNo", e.target.value)}
                       placeholder="Serial number"
+                      maxLength={TEXT_FIELD_MAX_LENGTH}
                     />
                   </div>
                   <div className="col-span-1">
