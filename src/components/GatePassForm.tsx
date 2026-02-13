@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Printer } from "lucide-react";
 import { GatePassItem, GatePassData } from "@/types/gatepass";
+import { Destination, DestinationService } from "@/services/destinationService";
 
 interface GatePassFormProps {
   onSubmit: (data: GatePassData) => void;
@@ -66,6 +67,9 @@ export function GatePassForm({
 }: GatePassFormProps) {
   const [items, setItems] = useState<GatePassItem[]>(normalizeItems(initialData?.items));
   const [destination, setDestination] = useState(initialData?.destination ?? "");
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
+  const [destinationError, setDestinationError] = useState<string | null>(null);
   const [carriedBy, setCarriedBy] = useState(initialData?.carriedBy ?? "");
   const [through, setThrough] = useState(initialData?.through ?? "");
   const [mobileNo, setMobileNo] = useState(initialData?.mobileNo ?? "");
@@ -83,6 +87,49 @@ export function GatePassForm({
     setMobileNo(initialData.mobileNo ?? "");
     setReturnable(toBoolean(initialData.returnable));
   }, [initialData]);
+
+  useEffect(() => {
+    const loadDestinations = async () => {
+      setIsLoadingDestinations(true);
+      setDestinationError(null);
+      try {
+        const data = await DestinationService.fetchDestinations();
+        const activeDestinations = data.filter((item) =>
+          toBoolean(item.isActive, false)
+        );
+
+        const includesExistingSelection =
+          destination &&
+          activeDestinations.some(
+            (item) => item.destinationCode === destination
+          );
+
+        const allDestinations = includesExistingSelection
+          ? activeDestinations
+          : destination
+            ? [...activeDestinations, ...data.filter(
+                (item) => item.destinationCode === destination
+              )]
+            : activeDestinations;
+
+        setDestinations(allDestinations);
+
+        if (!destination && activeDestinations.length > 0) {
+          setDestination(activeDestinations[0].destinationCode);
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load destinations";
+        setDestinationError(message);
+      } finally {
+        setIsLoadingDestinations(false);
+      }
+    };
+
+    void loadDestinations();
+    // We intentionally run this only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addItem = () => {
     if (items.length >= MAX_ITEMS) {
@@ -245,13 +292,47 @@ export function GatePassForm({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="destination">Destination</Label>
-              <Input
-                id="destination"
+              <Select
                 value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="Enter destination"
+                onValueChange={setDestination}
                 required
-              />
+                disabled={isLoadingDestinations || destinations.length === 0}
+              >
+                <SelectTrigger id="destination">
+                  <SelectValue
+                    placeholder={
+                      isLoadingDestinations
+                        ? "Loading destinations..."
+                        : "Select destination"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingDestinations && (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                  {!isLoadingDestinations && destinations.length === 0 && (
+                    <SelectItem value="no-destination" disabled>
+                      No active destinations
+                    </SelectItem>
+                  )}
+                  {destinations.map((item) => (
+                    <SelectItem
+                      key={item.destinationCode}
+                      value={item.destinationCode}
+                    >
+                      {item.destinationCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {destinationError && (
+                <p className="text-xs text-destructive">
+                  {destinationError}
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">

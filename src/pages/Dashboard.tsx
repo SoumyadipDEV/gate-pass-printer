@@ -13,12 +13,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight, UserPlus } from "lucide-react";
+import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight, UserPlus, MapPin } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
 import { GatePassPrint } from "@/components/GatePassPrint";
 import { useReactToPrint } from "react-to-print";
 import { GatePassService } from "@/services/gatepassService";
+import { DestinationService } from "@/services/destinationService";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { Switch } from "@/components/ui/switch";
@@ -37,6 +38,12 @@ const Dashboard = () => {
   const [exportFromDate, setExportFromDate] = useState("");
   const [exportToDate, setExportToDate] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [destinationDialogOpen, setDestinationDialogOpen] = useState(false);
+  const [destinationName, setDestinationName] = useState("");
+  const [destinationCode, setDestinationCode] = useState("");
+  const [destinationEmail, setDestinationEmail] = useState("");
+  const [isDestinationActive, setIsDestinationActive] = useState(true);
+  const [isCreatingDestination, setIsCreatingDestination] = useState(false);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
@@ -420,6 +427,53 @@ const Dashboard = () => {
     }
   };
 
+  const resetDestinationForm = () => {
+    setDestinationName("");
+    setDestinationCode("");
+    setDestinationEmail("");
+    setIsDestinationActive(true);
+  };
+
+  const handleCreateDestination = async () => {
+    if (!destinationName.trim() || !destinationCode.trim()) {
+      toast({
+        title: "Missing details",
+        description: "Destination name and code are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingDestination(true);
+    try {
+      const result = await DestinationService.createDestination({
+        destinationName,
+        destinationCode,
+        emailID: destinationEmail,
+        isActive: isDestinationActive,
+      });
+
+      toast({
+        title: "Destination created",
+        description: result.message || "Destination created successfully.",
+        variant: "default",
+      });
+
+      resetDestinationForm();
+      setDestinationDialogOpen(false);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create destination";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingDestination(false);
+    }
+  };
+
   const resetUserForm = () => {
     setNewUserEmail("");
     setNewUserName("");
@@ -488,6 +542,94 @@ const Dashboard = () => {
             <p className="text-sm text-muted-foreground">Gate Pass Management System</p>
           </div>
           <div className="flex gap-2">
+            <Dialog
+              open={destinationDialogOpen}
+              onOpenChange={(open) => {
+                setDestinationDialogOpen(open);
+                if (!open) {
+                  resetDestinationForm();
+                  setIsCreatingDestination(false);
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span className="hidden sm:inline">New Destination</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Create Destination</DialogTitle>
+                  <DialogDescription>
+                    Add a new destination code. Only active destinations appear in the gate pass form.
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreateDestination();
+                  }}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="destination-name">Destination Name</Label>
+                    <Input
+                      id="destination-name"
+                      value={destinationName}
+                      onChange={(e) => setDestinationName(e.target.value)}
+                      autoComplete="organization"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="destination-code">Destination Code</Label>
+                    <Input
+                      id="destination-code"
+                      value={destinationCode}
+                      onChange={(e) => setDestinationCode(e.target.value)}
+                      autoComplete="off"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="destination-email">Email (optional)</Label>
+                    <Input
+                      id="destination-email"
+                      type="email"
+                      value={destinationEmail}
+                      onChange={(e) => setDestinationEmail(e.target.value)}
+                      autoComplete="email"
+                      placeholder="alerts@example.com"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Active destination</p>
+                      <p className="text-xs text-muted-foreground">Only active codes show up in forms.</p>
+                    </div>
+                    <Switch
+                      id="destination-active"
+                      checked={isDestinationActive}
+                      onCheckedChange={setIsDestinationActive}
+                    />
+                  </div>
+                  <DialogFooter className="sm:justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDestinationDialogOpen(false)}
+                      disabled={isCreatingDestination}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isCreatingDestination}>
+                      {isCreatingDestination ? "Creating..." : "Create Destination"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
             <Dialog
               open={userDialogOpen}
               onOpenChange={(open) => {
