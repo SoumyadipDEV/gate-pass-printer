@@ -305,7 +305,7 @@ const Dashboard = () => {
     const rows = filtered.flatMap<ExportRow>((gatePass) => {
       const headerData: Omit<
         ExportRow,
-        "Item Sl No" | "Item Description" | "Item Model" | "Item Serial No" | "Item Qty"
+        "Item Sl No" | "Item Description" | "Item Make" | "Item Model" | "Item Serial No" | "Item Qty"
       > = {
         "GatePass No": gatePass.gatepassNo || "",
         "GatePass Date": gatePass.date ? formatDate(gatePass.date) : "",

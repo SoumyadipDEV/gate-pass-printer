@@ -67,6 +67,7 @@ export function GatePassForm({
 }: GatePassFormProps) {
   const [items, setItems] = useState<GatePassItem[]>(normalizeItems(initialData?.items));
   const [destination, setDestination] = useState(initialData?.destination ?? "");
+  const [destinationId, setDestinationId] = useState<string | number | undefined>(initialData?.destinationId);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [isLoadingDestinations, setIsLoadingDestinations] = useState(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
@@ -82,6 +83,7 @@ export function GatePassForm({
     }
     setItems(normalizeItems(initialData.items));
     setDestination(initialData.destination ?? "");
+    setDestinationId(initialData.destinationId);
     setCarriedBy(initialData.carriedBy ?? "");
     setThrough(initialData.through ?? "");
     setMobileNo(initialData.mobileNo ?? "");
@@ -114,8 +116,15 @@ export function GatePassForm({
 
         setDestinations(allDestinations);
 
-        if (!destination && activeDestinations.length > 0) {
+        const selected =
+          destination &&
+          allDestinations.find((item) => item.destinationCode === destination);
+
+        if (selected) {
+          setDestinationId(selected.id);
+        } else if (!destination && activeDestinations.length > 0) {
           setDestination(activeDestinations[0].destinationCode);
+          setDestinationId(activeDestinations[0].id);
         }
       } catch (err) {
         const message =
@@ -159,11 +168,15 @@ export function GatePassForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const resolvedDestinationId =
+      destinationId ??
+      destinations.find((item) => item.destinationCode === destination)?.id;
     
     const gatepassData: GatePassData = {
       date: initialData?.date ?? new Date(),
       items,
       destination,
+      destinationId: resolvedDestinationId,
       carriedBy,
       through,
       mobileNo,
@@ -294,7 +307,13 @@ export function GatePassForm({
               <Label htmlFor="destination">Destination</Label>
               <Select
                 value={destination}
-                onValueChange={setDestination}
+                onValueChange={(value) => {
+                  setDestination(value);
+                  const match = destinations.find(
+                    (item) => item.destinationCode === value
+                  );
+                  setDestinationId(match?.id);
+                }}
                 required
                 disabled={isLoadingDestinations || destinations.length === 0}
               >

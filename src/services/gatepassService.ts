@@ -1,5 +1,6 @@
-import { GatePassData, GatePassWithMeta } from "@/types/gatepass";
+import { GatePassData, GatePassWithMeta, GatePassItem } from "@/types/gatepass";
 import { generateGatePassNumber, getGatePassDateKey } from "@/utils/gatepassNumber";
+import { DestinationService } from "@/services/destinationService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/gatepass`;
@@ -9,6 +10,7 @@ interface ApiPayload {
   gatepassNo: string;
   date: string;
   destination: string;
+  destinationId?: string | number;
   carriedBy: string;
   through: string;
   mobileNo?: string;
@@ -81,6 +83,63 @@ function coerceBoolean(value: unknown, defaultValue = false): boolean {
   return Boolean(value);
 }
 
+const DEFAULT_DESTINATION_ID = 1;
+
+/**
+ * API rejects updates when destinationId is missing or falsy.
+ * Resolve a usable destinationId from the provided value or by
+ * matching the destination code/name from the destinations list,
+ * then fall back to a harmless default.
+ */
+async function normalizeDestinationId(
+  destinationId?: string | number,
+  destinationCode?: string
+): Promise<number> {
+  const parsed = Number(destinationId);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  if (destinationCode) {
+    try {
+      const destinations = await DestinationService.fetchDestinations();
+      const match = destinations.find((item) => {
+        const code = item.destinationCode?.toString().toLowerCase();
+        const name = item.destinationName?.toString().toLowerCase();
+        const target = destinationCode.toString().toLowerCase();
+        return code === target || name === target;
+      });
+
+      const matchId = Number(match?.id);
+      if (Number.isFinite(matchId) && matchId > 0) {
+        return matchId;
+      }
+    } catch (error) {
+      // If destination lookup fails, fall through to default
+    }
+  }
+
+  return DEFAULT_DESTINATION_ID;
+}
+
+/**
+ * API also rejects updates when any item fields are empty.
+ * Fill optional fields with a neutral placeholder so status
+ * toggles and edits don't break on older records.
+ */
+function normalizeItemsForApi(items: GatePassItem[]): ApiPayload["items"] {
+  const PLACEHOLDER = "N/A";
+
+  return items.map((item, index) => ({
+    slNo: item.slNo ?? index + 1,
+    description: (item.description ?? PLACEHOLDER).toString().trim() || PLACEHOLDER,
+    makeItem: (item.makeItem ?? PLACEHOLDER).toString().trim() || PLACEHOLDER,
+    model: (item.model ?? PLACEHOLDER).toString().trim() || PLACEHOLDER,
+    serialNo: (item.serialNo ?? PLACEHOLDER).toString().trim() || PLACEHOLDER,
+    qty: Number(item.qty) > 0 ? Number(item.qty) : 1,
+  }));
+}
+
 export class GatePassService {
   private static async fetchLastGatePassNoForDate(
     date: Date | string
@@ -142,6 +201,11 @@ export class GatePassService {
     
     // Format date to IST (Indian Standard Time)
     const dateString = convertToIST(data.date);
+    const destinationId = await normalizeDestinationId(
+      data.destinationId,
+      data.destination
+    );
+    const items = normalizeItemsForApi(data.items);
 
     // Prepare API payload
     const payload: ApiPayload = {
@@ -149,20 +213,14 @@ export class GatePassService {
       gatepassNo,
       date: dateString,
       destination: data.destination,
+      destinationId,
       carriedBy: data.carriedBy,
       through: data.through,
       mobileNo: data.mobileNo,
       createdBy,
       isEnable: data.isEnable === undefined ? 1 : data.isEnable ? 1 : 0,
       returnable: coerceBoolean(data.returnable) ? 1 : 0,
-      items: data.items.map((item) => ({
-        slNo: item.slNo,
-        description: item.description,
-        makeItem: item.makeItem ?? "",
-        model: item.model,
-        serialNo: item.serialNo,
-        qty: item.qty,
-      })),
+      items,
     };
 
     try {
@@ -254,6 +312,7 @@ export class GatePassService {
             qty: line.qty ?? 0,
           })),
           destination: item.destination,
+          destinationId: item.destinationId ?? item.destinationid ?? item.DestinationId,
           carriedBy: item.carriedBy,
           through: item.through,
           mobileNo: item.mobileNo,
@@ -290,6 +349,11 @@ export class GatePassService {
     const dateString = formatApiDate(data.date);
     const modifiedBy = updatedBy ?? data.modifiedBy ?? null;
     const modifiedAt = updatedBy ? new Date() : data.modifiedAt ?? null;
+    const destinationId = await normalizeDestinationId(
+      data.destinationId,
+      data.destination
+    );
+    const items = normalizeItemsForApi(data.items);
     const isEnable =
       data.isEnable === undefined ? undefined : data.isEnable ? 1 : 0;
     const returnable =
@@ -304,6 +368,7 @@ export class GatePassService {
       gatepassNo: data.gatepassNo,
       date: dateString,
       destination: data.destination,
+      destinationId,
       carriedBy: data.carriedBy,
       through: data.through,
       mobileNo: data.mobileNo,
@@ -312,14 +377,7 @@ export class GatePassService {
       modifiedAt: modifiedAt ? formatApiDate(modifiedAt) : null,
       ...(isEnable === undefined ? {} : { isEnable }),
       ...(returnable === undefined ? {} : { returnable }),
-      items: data.items.map((item) => ({
-        slNo: item.slNo,
-        description: item.description,
-        makeItem: item.makeItem ?? "",
-        model: item.model,
-        serialNo: item.serialNo,
-        qty: item.qty,
-      })),
+      items,
     };
 
     try {

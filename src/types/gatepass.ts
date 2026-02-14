@@ -12,6 +12,7 @@ export interface GatePassData {
   date: Date | string;
   items: GatePassItem[];
   destination: string;
+  destinationId?: string | number;
   carriedBy: string;
   through: string;
   mobileNo?: string;
@@ -28,6 +29,7 @@ export interface GatePassApiResponse {
   date: string;
   items: GatePassItem[];
   destination: string;
+  destinationId?: string | number;
   carriedBy: string;
   through: string;
   mobileNo: string;
