@@ -50,6 +50,8 @@ const Dashboard = () => {
   const [newUserPassword, setNewUserPassword] = useState("");
   const [isUserActive, setIsUserActive] = useState(true);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch gate passes from API using service
@@ -107,6 +109,34 @@ const Dashboard = () => {
       );
     });
   }, [gatePassList, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rowsPerPage, searchQuery, gatePassList.length]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredGatePasses.length / rowsPerPage)),
+    [filteredGatePasses.length, rowsPerPage]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedGatePasses = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredGatePasses.slice(start, start + rowsPerPage);
+  }, [filteredGatePasses, currentPage, rowsPerPage]);
+
+  const startIndex = filteredGatePasses.length === 0 ? 0 : (currentPage - 1) * rowsPerPage;
+  const endIndex =
+    filteredGatePasses.length === 0
+      ? 0
+      : Math.min(startIndex + rowsPerPage, filteredGatePasses.length);
+  const desktopGridCols =
+    "grid-cols-[1.15fr_0.85fr_1.1fr_1.1fr_0.95fr_0.95fr_1fr_1fr_1fr_1.6fr]";
 
   const handleLogout = () => {
     logout();
@@ -804,7 +834,7 @@ const Dashboard = () => {
           ) : (
             <>
               {/* Top Bar with Search and Stats */}
-              <div className="flex items-end justify-between gap-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
                 {/* Stats Card */}
                 <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20 p-4 flex-1">
                   <div className="flex items-center justify-between">
@@ -812,311 +842,365 @@ const Dashboard = () => {
                       <p className="text-sm text-muted-foreground">Total Gate Passes</p>
                       <p className="text-2xl font-bold text-foreground">{gatePassList.length}</p>
                     </div>
-                    <div>
+                    <div className="text-right">
                       <p className="text-sm text-muted-foreground">Showing</p>
                       <p className="text-2xl font-bold text-primary">{filteredGatePasses.length}</p>
                     </div>
                   </div>
                 </Card>
 
-                {/* Search Bar - Right Aligned */}
-                <div className="relative w-80">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 py-2 text-sm"
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-lg px-3 py-2 bg-card/70 shadow-inner">
+                    <span className="text-[11px] uppercase tracking-wide">Rows</span>
+                    <select
+                      value={rowsPerPage}
+                      onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                      className="bg-transparent text-foreground text-sm rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      {[10, 50, 100].map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative w-72 md:w-80">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 py-2 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Gate Pass Grid - Full Width */}
-              <div className="space-y-2">
-            {filteredGatePasses.length === 0 ? (
-              <Card className="p-8 text-center border-dashed">
-                <p className="text-muted-foreground text-lg">
-                  {gatePassList.length === 0 ? "No gate passes created yet" : "No results found"}
-                </p>
-                {gatePassList.length === 0 && (
-                  <Button onClick={handleCreateNew} className="mt-4">
-                    Create Your First Gate Pass
-                  </Button>
-                )}
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                  {/* Table Header */}
-                  <div className="hidden md:grid grid-cols-[1.2fr_0.9fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_1fr_1.8fr] gap-3 px-4 py-2 bg-muted/30 rounded-lg font-semibold text-sm text-foreground sticky top-0 z-10">
-                    <div>GatePass No</div>
-                    <div>Returnable</div>
-                    <div>Destination</div>
-                    <div>Carried By</div>
-                    <div>Mobile No</div>
-                    <div>Created Date</div>
-                    <div>Created By</div>
-                    <div>Modified Date</div>
-                    <div>Modified By</div>
-                    <div>Action</div>
-                  </div>
+              <div className="space-y-3">
+                {filteredGatePasses.length === 0 ? (
+                  <Card className="p-8 text-center border-dashed">
+                    <p className="text-muted-foreground text-lg">
+                      {gatePassList.length === 0 ? "No gate passes created yet" : "No results found"}
+                    </p>
+                    {gatePassList.length === 0 && (
+                      <Button onClick={handleCreateNew} className="mt-4">
+                        Create Your First Gate Pass
+                      </Button>
+                    )}
+                  </Card>
+                ) : (
+                  <Card className="overflow-hidden border border-border/70 shadow-sm">
+                    <div className="relative overflow-x-auto">
+                      <div className="min-w-[1100px] divide-y divide-border">
+                        <div
+                          className={`hidden md:grid ${desktopGridCols} gap-3 px-5 py-3 bg-muted/60 backdrop-blur font-semibold text-sm text-foreground sticky top-0 z-10 shadow-sm`}
+                        >
+                          <div>GatePass No</div>
+                          <div>Returnable</div>
+                          <div>Destination</div>
+                          <div>Carried By</div>
+                          <div>Mobile No</div>
+                          <div>Created Date</div>
+                          <div>Created By</div>
+                          <div>Modified Date</div>
+                          <div>Modified By</div>
+                          <div>Action</div>
+                        </div>
 
-                  {/* Table Rows */}
-                  {filteredGatePasses.map((gatePass) => {
-                    const isEnabled = isGatePassEnabled(gatePass.isEnable);
-                    const isReturnable = isReturnablePass(gatePass.returnable);
-                    const isUpdating = updatingId === gatePass.id;
-                    return (
-                    <Card
-                      key={gatePass.id}
-                      onClick={() => {
-                        if (!isEnabled) {
-                          return;
-                        }
-                        setSelectedGatePass(gatePass);
-                      }}
-                      className={`p-4 transition-all duration-200 group ${
-                        isEnabled
-                          ? "cursor-pointer hover:shadow-md hover:border-primary/50 hover:bg-card/80"
-                          : "cursor-not-allowed opacity-70"
-                      }`}
-                    >
-                      {/* Mobile View */}
-                      <div className="md:hidden space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground text-lg">{gatePass.gatepassNo}</p>
-                            <span
-                              className={`text-xs font-semibold border px-2 py-0.5 rounded-full ${
-                                isReturnable
-                                  ? "text-emerald-700 border-emerald-200 bg-emerald-50"
-                                  : "text-muted-foreground border-border bg-muted/40"
+                        {/* Table Rows */}
+                        {paginatedGatePasses.map((gatePass) => {
+                          const isEnabled = isGatePassEnabled(gatePass.isEnable);
+                          const isReturnable = isReturnablePass(gatePass.returnable);
+                          const isUpdating = updatingId === gatePass.id;
+
+                          return (
+                            <div
+                              key={gatePass.id}
+                              onClick={() => {
+                                if (!isEnabled) return;
+                                setSelectedGatePass(gatePass);
+                              }}
+                              className={`group transition-colors duration-150 ${
+                                isEnabled
+                                  ? "hover:bg-accent/5 cursor-pointer"
+                                  : "cursor-not-allowed opacity-70"
                               }`}
                             >
-                              {isReturnable ? "Returnable" : "Non-returnable"}
-                            </span>
-                            {!isEnabled && (
-                              <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
-                                Disabled
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex gap-1 flex-wrap">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!isEnabled}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePrintGatePass(gatePass);
-                              }}
-                              className="gap-1"
-                            >
-                              <Printer className="w-4 h-4" />
-                              <span className="text-xs">Print</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!isEnabled}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditGatePass(gatePass);
-                              }}
-                              className="gap-1"
-                            >
-                              <Pencil className="w-4 h-4" />
-                              <span className="text-xs">Edit</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={isUpdating}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleGatePass(gatePass);
-                              }}
-                              className="gap-1"
-                            >
-                              {isEnabled ? (
-                                <ToggleLeft className="w-4 h-4" />
-                              ) : (
-                                <ToggleRight className="w-4 h-4" />
-                              )}
-                              <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              disabled
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteGatePass(gatePass.id);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground text-xs">Destination</p>
-                            <p className="text-foreground font-medium truncate">{gatePass.destination}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Carried By</p>
-                            <p className="text-foreground font-medium truncate">{gatePass.carriedBy}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Mobile No</p>
-                            <p className="text-foreground font-medium truncate">{gatePass.mobileNo || "-"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Returnable</p>
-                            <p className="text-foreground font-medium">{isReturnable ? "Yes" : "No"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Created Date</p>
-                            <p className="text-foreground font-medium">
-                              {formatDate(gatePass.createdAt)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Created By</p>
-                            <p className="text-foreground font-medium whitespace-normal break-words">
-                              {gatePass.userName || gatePass.createdBy}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Modified Date</p>
-                            <p className="text-foreground font-medium">
-                              {formatDate(gatePass.modifiedAt)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Modified By</p>
-                            <p className="text-foreground font-medium whitespace-normal break-words">
-                              {gatePass.modifiedBy || "-"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                              {/* Mobile View */}
+                              <div className="md:hidden px-4 py-4 space-y-3 bg-card">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-foreground text-lg">{gatePass.gatepassNo}</p>
+                                    <span
+                                      className={`text-xs font-semibold border px-2 py-0.5 rounded-full ${
+                                        isReturnable
+                                          ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                                          : "text-muted-foreground border-border bg-muted/40"
+                                      }`}
+                                    >
+                                      {isReturnable ? "Returnable" : "Non-returnable"}
+                                    </span>
+                                    {!isEnabled && (
+                                      <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
+                                        Disabled
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1 flex-wrap">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={!isEnabled}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePrintGatePass(gatePass);
+                                      }}
+                                      className="gap-1"
+                                    >
+                                      <Printer className="w-4 h-4" />
+                                      <span className="text-xs">Print</span>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={!isEnabled}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditGatePass(gatePass);
+                                      }}
+                                      className="gap-1"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                      <span className="text-xs">Edit</span>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={isUpdating}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleGatePass(gatePass);
+                                      }}
+                                      className="gap-1"
+                                    >
+                                      {isEnabled ? (
+                                        <ToggleLeft className="w-4 h-4" />
+                                      ) : (
+                                        <ToggleRight className="w-4 h-4" />
+                                      )}
+                                      <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      disabled
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteGatePass(gatePass.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Destination</p>
+                                    <p className="text-foreground font-medium truncate">{gatePass.destination}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Carried By</p>
+                                    <p className="text-foreground font-medium truncate">{gatePass.carriedBy}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Mobile No</p>
+                                    <p className="text-foreground font-medium truncate">{gatePass.mobileNo || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Returnable</p>
+                                    <p className="text-foreground font-medium">{isReturnable ? "Yes" : "No"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Created Date</p>
+                                    <p className="text-foreground font-medium">
+                                      {formatDate(gatePass.createdAt)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Created By</p>
+                                    <p className="text-foreground font-medium whitespace-normal break-words">
+                                      {gatePass.userName || gatePass.createdBy}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Modified Date</p>
+                                    <p className="text-foreground font-medium">
+                                      {formatDate(gatePass.modifiedAt)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Modified By</p>
+                                    <p className="text-foreground font-medium whitespace-normal break-words">
+                                      {gatePass.modifiedBy || "-"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
 
-                      {/* Desktop View */}
-                      <div className="hidden md:grid grid-cols-[1.2fr_0.9fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_1fr_1.8fr] gap-3 items-center py-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
-                            {!isEnabled && (
-                              <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
-                                Disabled
-                              </span>
-                            )}
+                              {/* Desktop View */}
+                              <div
+                                className={`hidden md:grid ${desktopGridCols} gap-3 items-center px-5 py-4 ${
+                                  isEnabled ? "" : "opacity-70"
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-foreground truncate">{gatePass.gatepassNo}</p>
+                                    {!isEnabled && (
+                                      <span className="text-xs font-semibold text-destructive border border-destructive/40 px-2 py-0.5 rounded-full">
+                                        Disabled
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span
+                                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                      isReturnable
+                                        ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                                        : "text-muted-foreground border-border bg-muted/40"
+                                    }`}
+                                  >
+                                    {isReturnable ? "Returnable" : "Non-returnable"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-foreground truncate">{gatePass.destination}</p>
+                                </div>
+                                <div>
+                                  <p className="text-foreground truncate">{gatePass.carriedBy}</p>
+                                </div>
+                                <div>
+                                  <p className="text-foreground truncate">{gatePass.mobileNo || "-"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {formatDate(gatePass.createdAt)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-foreground text-sm whitespace-normal break-words">
+                                    {gatePass.userName || gatePass.createdBy}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {formatDate(gatePass.modifiedAt)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-foreground text-sm whitespace-normal break-words">
+                                    {gatePass.modifiedBy || "-"}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!isEnabled}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrintGatePass(gatePass);
+                                    }}
+                                    className="gap-1"
+                                  >
+                                    <Printer className="w-4 h-4" />
+                                    <span className="text-xs">Print</span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!isEnabled}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditGatePass(gatePass);
+                                    }}
+                                    className="gap-1"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                    <span className="text-xs">Edit</span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isUpdating}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleGatePass(gatePass);
+                                    }}
+                                    className="gap-1"
+                                  >
+                                    {isEnabled ? (
+                                      <ToggleLeft className="w-4 h-4" />
+                                    ) : (
+                                      <ToggleRight className="w-4 h-4" />
+                                    )}
+                                    <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteGatePass(gatePass.id);
+                                    }}
+                                    className="gap-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                              isReturnable
-                                ? "text-emerald-700 border-emerald-200 bg-emerald-50"
-                                : "text-muted-foreground border-border bg-muted/40"
-                            }`}
-                          >
-                            {isReturnable ? "Returnable" : "Non-returnable"}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-foreground truncate">{gatePass.destination}</p>
-                        </div>
-                        <div>
-                          <p className="text-foreground truncate">{gatePass.carriedBy}</p>
-                        </div>
-                        <div>
-                          <p className="text-foreground truncate">{gatePass.mobileNo || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(gatePass.createdAt)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-foreground text-sm whitespace-normal break-words">
-                            {gatePass.userName || gatePass.createdBy}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(gatePass.modifiedAt)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-foreground text-sm whitespace-normal break-words">
-                            {gatePass.modifiedBy || "-"}
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!isEnabled}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrintGatePass(gatePass);
-                            }}
-                            className="gap-1"
-                          >
-                            <Printer className="w-4 h-4" />
-                            <span className="text-xs">Print</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!isEnabled}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditGatePass(gatePass);
-                            }}
-                            className="gap-1"
-                          >
-                            <Pencil className="w-4 h-4" />
-                            <span className="text-xs">Edit</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={isUpdating}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleGatePass(gatePass);
-                            }}
-                            className="gap-1"
-                          >
-                            {isEnabled ? (
-                              <ToggleLeft className="w-4 h-4" />
-                            ) : (
-                              <ToggleRight className="w-4 h-4" />
-                            )}
-                            <span className="text-xs">{isEnabled ? "Disable" : "Enable"}</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteGatePass(gatePass.id);
-                            }}
-                            className="gap-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        );
+                      })}
                       </div>
-                    </Card>
-                  )})}
-                </div>
-              )}
-            </div>
+                    </div>
+                  </Card>
+                )}
+
+                {filteredGatePasses.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 border border-border/70 px-4 py-3">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {filteredGatePasses.length === 0 ? 0 : startIndex + 1}-{endIndex} of{" "}
+                      {filteredGatePasses.length}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
