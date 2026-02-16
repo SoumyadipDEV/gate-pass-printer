@@ -100,27 +100,34 @@ export function GatePassForm({
           toBoolean(item.isActive, false)
         );
 
-        const includesExistingSelection =
-          destination &&
-          activeDestinations.some(
-            (item) => item.destinationCode === destination
-          );
+        const selected =
+          (destinationId !== undefined && destinationId !== null
+            ? data.find((item) => item.id?.toString() === destinationId.toString())
+            : undefined) ||
+          (destination
+            ? data.find(
+                (item) =>
+                  item.destinationCode?.toString().toLowerCase() ===
+                  destination.toString().toLowerCase()
+              )
+            : undefined) ||
+          (destination
+            ? data.find(
+                (item) =>
+                  item.destinationName?.toString().toLowerCase() ===
+                  destination.toString().toLowerCase()
+              )
+            : undefined);
 
-        const allDestinations = includesExistingSelection
-          ? activeDestinations
-          : destination
-            ? [...activeDestinations, ...data.filter(
-                (item) => item.destinationCode === destination
-              )]
+        const allDestinations =
+          selected && !activeDestinations.some((item) => item.id === selected.id)
+            ? [...activeDestinations, selected]
             : activeDestinations;
 
         setDestinations(allDestinations);
 
-        const selected =
-          destination &&
-          allDestinations.find((item) => item.destinationCode === destination);
-
         if (selected) {
+          setDestination(selected.destinationCode);
           setDestinationId(selected.id);
         } else if (!destination && activeDestinations.length > 0) {
           setDestination(activeDestinations[0].destinationCode);

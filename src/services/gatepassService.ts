@@ -1,6 +1,6 @@
 import { GatePassData, GatePassWithMeta, GatePassItem } from "@/types/gatepass";
 import { generateGatePassNumber, getGatePassDateKey } from "@/utils/gatepassNumber";
-import { DestinationService } from "@/services/destinationService";
+import { Destination, DestinationService } from "@/services/destinationService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/gatepass`;
@@ -86,6 +86,54 @@ function coerceBoolean(value: unknown, defaultValue = false): boolean {
 const DEFAULT_DESTINATION_ID = 1;
 
 /**
+ * Find a destination by id, code or name from a provided list
+ */
+function findDestinationMatch(
+  destinations: Destination[] | null | undefined,
+  destinationCodeOrName?: string,
+  destinationId?: string | number
+): Destination | undefined {
+  if (!destinations || destinations.length === 0) {
+    return undefined;
+  }
+
+  const normalizedId = Number(destinationId);
+  if (Number.isFinite(normalizedId)) {
+    const byId = destinations.find(
+      (item) => Number(item.id) === normalizedId
+    );
+    if (byId) {
+      return byId;
+    }
+  }
+
+  if (!destinationCodeOrName) {
+    return undefined;
+  }
+
+  const target = destinationCodeOrName.toString().trim().toLowerCase();
+
+  return destinations.find((item) => {
+    const code = item.destinationCode?.toString().toLowerCase();
+    const name = item.destinationName?.toString().toLowerCase();
+    return code === target || name === target;
+  });
+}
+
+/**
+ * Resolve the human readable destination name from a code/id.
+ * Falls back to the provided value if lookup fails.
+ */
+function resolveDestinationName(
+  destinations: Destination[] | null | undefined,
+  destinationCodeOrName?: string,
+  destinationId?: string | number
+): string {
+  const match = findDestinationMatch(destinations, destinationCodeOrName, destinationId);
+  return match?.destinationName || destinationCodeOrName || "";
+}
+
+/**
  * API rejects updates when destinationId is missing or falsy.
  * Resolve a usable destinationId from the provided value or by
  * matching the destination code/name from the destinations list,
@@ -93,7 +141,8 @@ const DEFAULT_DESTINATION_ID = 1;
  */
 async function normalizeDestinationId(
   destinationId?: string | number,
-  destinationCode?: string
+  destinationCode?: string,
+  destinations?: Destination[]
 ): Promise<number> {
   const parsed = Number(destinationId);
   if (Number.isFinite(parsed) && parsed > 0) {
@@ -101,21 +150,22 @@ async function normalizeDestinationId(
   }
 
   if (destinationCode) {
-    try {
-      const destinations = await DestinationService.fetchDestinations();
-      const match = destinations.find((item) => {
-        const code = item.destinationCode?.toString().toLowerCase();
-        const name = item.destinationName?.toString().toLowerCase();
-        const target = destinationCode.toString().toLowerCase();
-        return code === target || name === target;
-      });
+    const sourceList =
+      destinations ??
+      (await DestinationService.fetchDestinations().catch(() => null)) ??
+      undefined;
 
-      const matchId = Number(match?.id);
-      if (Number.isFinite(matchId) && matchId > 0) {
-        return matchId;
+    if (sourceList) {
+      try {
+        const match = findDestinationMatch(sourceList, destinationCode);
+
+        const matchId = Number(match?.id);
+        if (Number.isFinite(matchId) && matchId > 0) {
+          return matchId;
+        }
+      } catch (error) {
+        // If destination lookup fails, fall through to default
       }
-    } catch (error) {
-      // If destination lookup fails, fall through to default
     }
   }
 
@@ -184,7 +234,7 @@ export class GatePassService {
   static async createGatePass(
     data: GatePassData,
     createdBy: string
-  ): Promise<{ id: string; gatepassNo: string }> {
+  ): Promise<{ id: string; gatepassNo: string; destination: string; destinationId: number }> {
     const id = generateId();
 
     let gatepassNo = "";
@@ -201,9 +251,16 @@ export class GatePassService {
     
     // Format date to IST (Indian Standard Time)
     const dateString = convertToIST(data.date);
+    const destinations = await DestinationService.fetchDestinations().catch(() => null);
     const destinationId = await normalizeDestinationId(
       data.destinationId,
-      data.destination
+      data.destination,
+      destinations ?? undefined
+    );
+    const destinationName = resolveDestinationName(
+      destinations,
+      data.destination,
+      destinationId
     );
     const items = normalizeItemsForApi(data.items);
 
@@ -212,7 +269,7 @@ export class GatePassService {
       id,
       gatepassNo,
       date: dateString,
-      destination: data.destination,
+      destination: destinationName,
       destinationId,
       carriedBy: data.carriedBy,
       through: data.through,
@@ -247,6 +304,8 @@ export class GatePassService {
       return {
         id: result.gatePassId || id,
         gatepassNo,
+        destination: destinationName,
+        destinationId,
       };
     } catch (error) {
       const errorMessage = error instanceof Error 
@@ -349,9 +408,16 @@ export class GatePassService {
     const dateString = formatApiDate(data.date);
     const modifiedBy = updatedBy ?? data.modifiedBy ?? null;
     const modifiedAt = updatedBy ? new Date() : data.modifiedAt ?? null;
+    const destinations = await DestinationService.fetchDestinations().catch(() => null);
     const destinationId = await normalizeDestinationId(
       data.destinationId,
-      data.destination
+      data.destination,
+      destinations ?? undefined
+    );
+    const destinationName = resolveDestinationName(
+      destinations,
+      data.destination,
+      destinationId
     );
     const items = normalizeItemsForApi(data.items);
     const isEnable =
@@ -367,7 +433,7 @@ export class GatePassService {
       id: data.id,
       gatepassNo: data.gatepassNo,
       date: dateString,
-      destination: data.destination,
+      destination: destinationName,
       destinationId,
       carriedBy: data.carriedBy,
       through: data.through,

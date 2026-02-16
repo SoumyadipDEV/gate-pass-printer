@@ -101,11 +101,18 @@ const Index = () => {
 
     try {
       // Call API to create gate pass
-      const { id: gatePassId, gatepassNo } = await GatePassService.createGatePass(data, userName);
+      const {
+        id: gatePassId,
+        gatepassNo,
+        destination: destinationName,
+        destinationId,
+      } = await GatePassService.createGatePass(data, userName);
 
       // Prepare the response data to display
       const responseData: GatePassWithMeta = {
         ...data,
+        destination: destinationName,
+        destinationId,
         id: gatePassId,
         gatepassNo,
         createdBy: userName,
