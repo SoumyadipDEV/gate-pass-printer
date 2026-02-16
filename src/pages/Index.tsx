@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import { GatePassForm } from "@/components/GatePassForm";
 import { GatePassPrint } from "@/components/GatePassPrint";
 import { GatePassData, GatePassWithMeta } from "@/types/gatepass";
@@ -10,20 +9,79 @@ import { useUser } from "@/contexts/UserContext";
 import { GatePassService } from "@/services/gatepassService";
 import { useToast } from "@/hooks/use-toast";
 
+type PrintStatus = "idle" | "checking" | "ready" | "generating";
+
 
 const Index = () => {
   const navigate = useNavigate();
   const { logout, user } = useUser();
   const { toast } = useToast();
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   const [gatePassData, setGatePassData] = useState<GatePassWithMeta | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [pdfStatus, setPdfStatus] = useState<PrintStatus>("idle");
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: gatePassData ? `GatePass-${gatePassData.gatepassNo}` : "GatePass",
-  });
+  const pdfUrlFor = (gatePassId: string) => `${API_BASE_URL}/api/gatepass/${gatePassId}/pdf`;
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const isPdfReady = async (url: string) => {
+    try {
+      const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      return response.ok || response.status === 304;
+    } catch {
+      return false;
+    }
+  };
+
+  const ensurePdfReady = async (
+    gatePass: GatePassWithMeta,
+    {
+      openOnReady = false,
+      silent = false,
+      maxAttempts = 3,
+    }: { openOnReady?: boolean; silent?: boolean; maxAttempts?: number } = {}
+  ) => {
+    if (!gatePass.id) return false;
+
+    setPdfStatus("checking");
+    const url = pdfUrlFor(gatePass.id);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const ready = await isPdfReady(url);
+      if (ready) {
+        setPdfStatus("ready");
+        if (openOnReady) {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+        return true;
+      }
+      if (attempt < maxAttempts - 1) {
+        await wait(1100);
+      }
+    }
+
+    setPdfStatus("generating");
+    if (!silent) {
+      toast({
+        title: "Generating PDF",
+        description: "The gate pass PDF is being prepared. Please try again shortly.",
+        variant: "default",
+      });
+    }
+    setTimeout(() => setPdfStatus("idle"), 1500);
+    return false;
+  };
+
+  useEffect(() => {
+    if (!gatePassData?.id) {
+      setPdfStatus("idle");
+      return;
+    }
+
+    ensurePdfReady(gatePassData, { silent: true, openOnReady: false, maxAttempts: 2 });
+  }, [gatePassData]);
 
   const handleFormSubmit = async (data: GatePassData) => {
     const userName = localStorage.getItem("username") || user?.name;
@@ -118,6 +176,11 @@ const Index = () => {
     }
   };
 
+  const handlePrintPdf = async () => {
+    if (!gatePassData) return;
+    await ensurePdfReady(gatePassData, { openOnReady: true });
+  };
+
   const handleBack = () => {
     setGatePassData(null);
     setError(null);
@@ -131,6 +194,14 @@ const Index = () => {
   const handleViewDashboard = () => {
     navigate("/dashboard");
   };
+
+  const printLabel =
+    pdfStatus === "checking"
+      ? "Checking..."
+      : pdfStatus === "generating"
+        ? "Generating..."
+        : "Print Gate Pass";
+  const isPrintDisabled = !gatePassData || pdfStatus === "checking" || pdfStatus === "generating";
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,9 +237,9 @@ const Index = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Form
               </Button>
-              <Button onClick={() => handlePrint()}>
+              <Button onClick={handlePrintPdf} disabled={isPrintDisabled}>
                 <Printer className="w-4 h-4 mr-2" />
-                Print Gate Pass
+                {printLabel}
               </Button>
               <Button 
                 onClick={handleSaveAndReturn}
@@ -182,37 +253,13 @@ const Index = () => {
             {/* Preview */}
             <div className="flex justify-center">
               <div className="shadow-xl rounded-lg overflow-hidden">
-                <GatePassPrint ref={printRef} data={gatePassData} />
+                <GatePassPrint data={gatePassData} />
               </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 10mm;
-          }
-          
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          
-          header, .no-print {
-            display: none !important;
-          }
-          
-          .print-container {
-            width: 100% !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };

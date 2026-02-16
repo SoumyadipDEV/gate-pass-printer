@@ -16,22 +16,22 @@ import {
 import { LogOut, Search, Printer, Plus, Trash2, Pencil, FileSpreadsheet, ToggleLeft, ToggleRight, UserPlus, MapPin } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassWithMeta } from "@/types/gatepass";
-import { GatePassPrint } from "@/components/GatePassPrint";
-import { useReactToPrint } from "react-to-print";
 import { GatePassService } from "@/services/gatepassService";
 import { DestinationService } from "@/services/destinationService";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { Switch } from "@/components/ui/switch";
 
+type PrintStatus = "idle" | "checking" | "ready" | "generating";
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { logout, user } = useUser();
   const { toast } = useToast();
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   const [searchQuery, setSearchQuery] = useState("");
   const [gatePassList, setGatePassList] = useState<GatePassWithMeta[]>([]);
   const [selectedGatePass, setSelectedGatePass] = useState<GatePassWithMeta | null>(null);
-  const [shouldPrint, setShouldPrint] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -52,7 +52,8 @@ const Dashboard = () => {
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [printStatusById, setPrintStatusById] = useState<Record<string, PrintStatus>>({});
+  const printResetTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Fetch gate passes from API using service
   useEffect(() => {
@@ -79,20 +80,91 @@ const Dashboard = () => {
     fetchGatePasses();
   }, []);
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: selectedGatePass ? `GatePass-${selectedGatePass.gatepassNo}` : "GatePass",
-    onAfterPrint: () => {
-      setShouldPrint(false);
-    },
-  });
+  const pdfUrlFor = (gatePassId: string) => `${API_BASE_URL}/api/gatepass/${gatePassId}/pdf`;
 
-  // Trigger print when shouldPrint flag is set
-  useEffect(() => {
-    if (shouldPrint && selectedGatePass) {
-      handlePrint();
+  const updatePrintStatus = (gatePassId: string, status: PrintStatus) => {
+    setPrintStatusById((prev) => {
+      if (prev[gatePassId] === status) {
+        return prev;
+      }
+      return { ...prev, [gatePassId]: status };
+    });
+  };
+
+  const clearResetTimer = (gatePassId: string) => {
+    const timer = printResetTimers.current[gatePassId];
+    if (timer) {
+      clearTimeout(timer);
+      delete printResetTimers.current[gatePassId];
     }
-  }, [shouldPrint, selectedGatePass, handlePrint]);
+  };
+
+  const resetStatusAfterDelay = (gatePassId: string, delay = 1500) => {
+    clearResetTimer(gatePassId);
+    printResetTimers.current[gatePassId] = setTimeout(() => {
+      setPrintStatusById((prev) => {
+        if (prev[gatePassId] !== "generating") return prev;
+        return { ...prev, [gatePassId]: "idle" };
+      });
+      delete printResetTimers.current[gatePassId];
+    }, delay);
+  };
+
+  const isPdfReady = async (url: string) => {
+    try {
+      const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      return response.ok || response.status === 304;
+    } catch {
+      return false;
+    }
+  };
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const ensurePdfReady = async (
+    gatePass: GatePassWithMeta,
+    {
+      openOnReady = false,
+      silent = false,
+      maxAttempts = 3,
+    }: { openOnReady?: boolean; silent?: boolean; maxAttempts?: number } = {}
+  ) => {
+    const url = pdfUrlFor(gatePass.id);
+    updatePrintStatus(gatePass.id, "checking");
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const ready = await isPdfReady(url);
+      if (ready) {
+        updatePrintStatus(gatePass.id, "ready");
+        if (openOnReady) {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+        return true;
+      }
+      if (attempt < maxAttempts - 1) {
+        await wait(1100);
+      }
+    }
+
+    updatePrintStatus(gatePass.id, "generating");
+    resetStatusAfterDelay(gatePass.id);
+
+    if (!silent) {
+      toast({
+        title: "Generating PDF",
+        description: "The PDF is being prepared. Please try again in a moment.",
+        variant: "default",
+      });
+    }
+
+    return false;
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(printResetTimers.current).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
 
   // Filter gate passes based on search query
   const filteredGatePasses = useMemo(() => {
@@ -129,6 +201,15 @@ const Dashboard = () => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredGatePasses.slice(start, start + rowsPerPage);
   }, [filteredGatePasses, currentPage, rowsPerPage]);
+
+  useEffect(() => {
+    paginatedGatePasses.forEach((gatePass) => {
+      const status = printStatusById[gatePass.id];
+      if (status === undefined || status === "idle") {
+        ensurePdfReady(gatePass, { silent: true, openOnReady: false, maxAttempts: 1 });
+      }
+    });
+  }, [paginatedGatePasses, printStatusById]);
 
   const startIndex = filteredGatePasses.length === 0 ? 0 : (currentPage - 1) * rowsPerPage;
   const endIndex =
@@ -185,7 +266,7 @@ const Dashboard = () => {
     }
   };
 
-  const handlePrintGatePass = (gatePass: GatePassWithMeta) => {
+  const handlePrintGatePass = async (gatePass: GatePassWithMeta) => {
     if (!isGatePassEnabled(gatePass.isEnable)) {
       toast({
         title: "Action blocked",
@@ -194,8 +275,8 @@ const Dashboard = () => {
       });
       return;
     }
-    setSelectedGatePass(gatePass);
-    setShouldPrint(true);
+
+    await ensurePdfReady(gatePass, { openOnReady: true });
   };
 
   const handleEditGatePass = (gatePass: GatePassWithMeta) => {
@@ -914,6 +995,11 @@ const Dashboard = () => {
                           const isEnabled = isGatePassEnabled(gatePass.isEnable);
                           const isReturnable = isReturnablePass(gatePass.returnable);
                           const isUpdating = updatingId === gatePass.id;
+                          const printStatus = printStatusById[gatePass.id] ?? "idle";
+                          const isCheckingPdf = printStatus === "checking";
+                          const isGeneratingPdf = printStatus === "generating";
+                          const printLabel =
+                            isCheckingPdf ? "Checking..." : isGeneratingPdf ? "Generating..." : "Print";
 
                           return (
                             <div
@@ -952,7 +1038,7 @@ const Dashboard = () => {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      disabled={!isEnabled}
+                                      disabled={!isEnabled || isCheckingPdf || isGeneratingPdf}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handlePrintGatePass(gatePass);
@@ -960,7 +1046,7 @@ const Dashboard = () => {
                                       className="gap-1"
                                     >
                                       <Printer className="w-4 h-4" />
-                                      <span className="text-xs">Print</span>
+                                      <span className="text-xs">{printLabel}</span>
                                     </Button>
                                     <Button
                                       size="sm"
@@ -1109,7 +1195,7 @@ const Dashboard = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={!isEnabled}
+                                    disabled={!isEnabled || isCheckingPdf || isGeneratingPdf}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handlePrintGatePass(gatePass);
@@ -1117,7 +1203,7 @@ const Dashboard = () => {
                                     className="gap-1"
                                   >
                                     <Printer className="w-4 h-4" />
-                                    <span className="text-xs">Print</span>
+                                    <span className="text-xs">{printLabel}</span>
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1205,38 +1291,7 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Hidden Print Component */}
-        {selectedGatePass && (
-          <div style={{ display: "none" }}>
-            <GatePassPrint ref={printRef} data={selectedGatePass} />
-          </div>
-        )}
       </main>
-
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 10mm;
-          }
-          
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          
-          header, .no-print {
-            display: none !important;
-          }
-          
-          .print-container {
-            width: 100% !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
