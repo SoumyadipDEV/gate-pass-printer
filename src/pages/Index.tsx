@@ -1,87 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GatePassForm } from "@/components/GatePassForm";
-import { GatePassPrint } from "@/components/GatePassPrint";
-import { GatePassData, GatePassWithMeta } from "@/types/gatepass";
+import { GatePassData } from "@/types/gatepass";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, LogOut, LayoutGrid } from "lucide-react";
+import { LogOut, LayoutGrid } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { GatePassService } from "@/services/gatepassService";
 import { useToast } from "@/hooks/use-toast";
-
-type PrintStatus = "idle" | "checking" | "ready" | "generating";
-
 
 const Index = () => {
   const navigate = useNavigate();
   const { logout, user } = useUser();
   const { toast } = useToast();
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
-  const [gatePassData, setGatePassData] = useState<GatePassWithMeta | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pdfStatus, setPdfStatus] = useState<PrintStatus>("idle");
-
-  const pdfUrlFor = (gatePassId: string) => `${API_BASE_URL}/api/gatepass/${gatePassId}/pdf`;
-
-  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  const isPdfReady = async (url: string) => {
-    try {
-      const response = await fetch(url, { method: "HEAD", cache: "no-store" });
-      return response.ok || response.status === 304;
-    } catch {
-      return false;
-    }
-  };
-
-  const ensurePdfReady = async (
-    gatePass: GatePassWithMeta,
-    {
-      openOnReady = false,
-      silent = false,
-      maxAttempts = 3,
-    }: { openOnReady?: boolean; silent?: boolean; maxAttempts?: number } = {}
-  ) => {
-    if (!gatePass.id) return false;
-
-    setPdfStatus("checking");
-    const url = pdfUrlFor(gatePass.id);
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const ready = await isPdfReady(url);
-      if (ready) {
-        setPdfStatus("ready");
-        if (openOnReady) {
-          window.open(url, "_blank", "noopener,noreferrer");
-        }
-        return true;
-      }
-      if (attempt < maxAttempts - 1) {
-        await wait(1100);
-      }
-    }
-
-    setPdfStatus("generating");
-    if (!silent) {
-      toast({
-        title: "Generating PDF",
-        description: "The gate pass PDF is being prepared. Please try again shortly.",
-        variant: "default",
-      });
-    }
-    setTimeout(() => setPdfStatus("idle"), 1500);
-    return false;
-  };
-
-  useEffect(() => {
-    if (!gatePassData?.id) {
-      setPdfStatus("idle");
-      return;
-    }
-
-    ensurePdfReady(gatePassData, { silent: true, openOnReady: false, maxAttempts: 2 });
-  }, [gatePassData]);
 
   const handleFormSubmit = async (data: GatePassData) => {
     const userName = localStorage.getItem("username") || user?.name;
@@ -100,36 +32,14 @@ const Index = () => {
     setError(null);
 
     try {
-      // Call API to create gate pass
-      const {
-        id: gatePassId,
-        gatepassNo,
-        destination: destinationName,
-        destinationId,
-      } = await GatePassService.createGatePass(data, userName);
-
-      // Prepare the response data to display
-      const responseData: GatePassWithMeta = {
-        ...data,
-        destination: destinationName,
-        destinationId,
-        id: gatePassId,
-        gatepassNo,
-        createdBy: userName,
-        createdAt: new Date(),
-        userName: userName,
-        isEnable: true,
-        modifiedBy: null,
-        modifiedAt: null,
-      };
-
-      setGatePassData(responseData);
+      const { gatepassNo } = await GatePassService.createGatePass(data, userName);
 
       toast({
         title: "Success",
-        description: "Gate pass created successfully!",
+        description: `Gate pass ${gatepassNo} created successfully.`,
         variant: "default",
       });
+      navigate("/dashboard");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to create gate pass";
       setError(errorMessage);
@@ -144,55 +54,6 @@ const Index = () => {
     }
   };
 
-  const handleSaveAndReturn = async () => {
-    if (!gatePassData || !gatePassData.id) {
-      setError("Gate pass data is missing");
-      toast({
-        title: "Error",
-        description: "Gate pass data is incomplete",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Navigate to dashboard - data is already saved in the database
-      toast({
-        title: "Success",
-        description: "Redirecting to dashboard...",
-        variant: "default",
-      });
-      navigate("/dashboard");
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to process request";
-      setError(errorMessage);
-
-      // Attempt rollback if something went wrong
-      try {
-        await GatePassService.rollbackGatePass(gatePassData.id);
-        console.log("Rollback completed successfully");
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
-      }
-
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePrintPdf = async () => {
-    if (!gatePassData) return;
-    await ensurePdfReady(gatePassData, { openOnReady: true });
-  };
-
-  const handleBack = () => {
-    setGatePassData(null);
-    setError(null);
-  };
-
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -201,14 +62,6 @@ const Index = () => {
   const handleViewDashboard = () => {
     navigate("/dashboard");
   };
-
-  const printLabel =
-    pdfStatus === "checking"
-      ? "Checking..."
-      : pdfStatus === "generating"
-        ? "Generating..."
-        : "Print Gate Pass";
-  const isPrintDisabled = !gatePassData || pdfStatus === "checking" || pdfStatus === "generating";
 
   return (
     <div className="min-h-screen bg-background">
@@ -234,37 +87,12 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto p-4">
-        {!gatePassData ? (
-          <GatePassForm onSubmit={handleFormSubmit} isLoading={isLoading} error={error} />
-        ) : (
-          <div className="space-y-6">
-            {/* Action Buttons */}
-            <div className="flex justify-center gap-4 flex-wrap">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Form
-              </Button>
-              <Button onClick={handlePrintPdf} disabled={isPrintDisabled}>
-                <Printer className="w-4 h-4 mr-2" />
-                {printLabel}
-              </Button>
-              <Button 
-                onClick={handleSaveAndReturn}
-                className="bg-green-600 hover:bg-green-700 hidden"
-              >
-                <LayoutGrid className="w-4 h-4 mr-2" />
-                Save & Go to Dashboard
-              </Button>
-            </div>
-
-            {/* Preview */}
-            <div className="flex justify-center">
-              <div className="shadow-xl rounded-lg overflow-hidden">
-                <GatePassPrint data={gatePassData} />
-              </div>
-            </div>
-          </div>
-        )}
+        <GatePassForm
+          onSubmit={handleFormSubmit}
+          isLoading={isLoading}
+          error={error}
+          submitLabel="Generate Gate Pass"
+        />
       </main>
 
     </div>

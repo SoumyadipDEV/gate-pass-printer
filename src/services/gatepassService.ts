@@ -317,29 +317,6 @@ export class GatePassService {
   }
 
   /**
-   * Rollback gate pass creation if needed
-   * @param gatePassId - ID of the gate pass to delete
-   * @returns Promise that resolves when rollback is complete
-   */
-  static async rollbackGatePass(gatePassId: string): Promise<void> {
-    try {
-      const response = await fetch(`${API_URL}/${gatePassId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        console.error(`Failed to rollback gate pass ${gatePassId}`);
-      }
-    } catch (error) {
-      console.error("Rollback error:", error);
-      // Silently fail rollback - log but don't throw to avoid masking original error
-    }
-  }
-
-  /**
    * Fetch all gate passes
    * @returns Promise with array of gate passes
    */

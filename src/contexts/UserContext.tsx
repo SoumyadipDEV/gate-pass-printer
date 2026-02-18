@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserContextType } from "@/types/user";
+import { DestinationService } from "@/services/destinationService";
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
@@ -15,7 +16,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (storedUser && isAuth === "true") {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser) as User;
+        setUser(parsedUser);
         setIsAuthenticated(true);
       } catch (error) {
         console.error("Failed to parse stored user:", error);
@@ -38,11 +40,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    const userEmail = user?.email ?? localStorage.getItem("email");
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem("user");
     localStorage.removeItem("username");
+    localStorage.removeItem("email");
     localStorage.removeItem("isAuthenticated");
+    if (userEmail) {
+      void DestinationService.clearDestinationCache(userEmail).catch(
+        () => undefined
+      );
+    }
   };
 
   return (
